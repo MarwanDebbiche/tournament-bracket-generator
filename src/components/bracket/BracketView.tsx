@@ -21,7 +21,7 @@ function Column({
 }) {
   return (
     <div className="flex min-w-[210px] flex-col">
-      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
         {title}
       </div>
       <div className="flex flex-1 flex-col justify-around gap-4">

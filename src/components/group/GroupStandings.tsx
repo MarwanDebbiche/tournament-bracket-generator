@@ -19,7 +19,7 @@ export function GroupStandings({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-slate-400">
+          <tr className="text-xs text-slate-400 dark:text-slate-500">
             <th className="w-6 py-1 text-right font-medium">#</th>
             <th className="py-1 pl-2 text-left font-medium">Player</th>
             <Stat label="P" title="Played" />
@@ -29,7 +29,9 @@ export function GroupStandings({
             {numeric && <Stat label="GF" title="Goals for" />}
             {numeric && <Stat label="GA" title="Goals against" />}
             {numeric && <Stat label="GD" title="Goal difference" />}
-            <th className="px-1.5 py-1 text-right font-semibold text-slate-500">Pts</th>
+            <th className="px-1.5 py-1 text-right font-semibold text-slate-500 dark:text-slate-400">
+              Pts
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -39,19 +41,21 @@ export function GroupStandings({
               <tr
                 key={row.playerId}
                 className={cn(
-                  'border-t border-slate-100',
-                  qualifies && 'bg-emerald-50/50',
+                  'border-t border-slate-100 dark:border-slate-800',
+                  qualifies && 'bg-emerald-50/50 dark:bg-emerald-500/10',
                 )}
               >
                 <td
                   className={cn(
                     'py-1.5 text-right tabular-nums',
-                    qualifies ? 'font-semibold text-emerald-600' : 'text-slate-400',
+                    qualifies
+                      ? 'font-semibold text-emerald-600 dark:text-emerald-400'
+                      : 'text-slate-400 dark:text-slate-500',
                   )}
                 >
                   {i + 1}
                 </td>
-                <td className="max-w-[10rem] truncate py-1.5 pl-2 font-medium text-slate-800">
+                <td className="max-w-[10rem] truncate py-1.5 pl-2 font-medium text-slate-800 dark:text-slate-100">
                   {nameOf(row.playerId)}
                 </td>
                 <Cell value={row.played} muted />
@@ -61,7 +65,7 @@ export function GroupStandings({
                 {numeric && <Cell value={row.goalsFor} muted />}
                 {numeric && <Cell value={row.goalsAgainst} muted />}
                 {numeric && <Cell value={row.goalDifference} signed />}
-                <td className="px-1.5 py-1.5 text-right font-semibold tabular-nums text-slate-900">
+                <td className="px-1.5 py-1.5 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                   {row.points}
                 </td>
               </tr>
@@ -94,7 +98,7 @@ function Cell({
     <td
       className={cn(
         'px-1.5 py-1.5 text-right tabular-nums',
-        muted ? 'text-slate-400' : 'text-slate-600',
+        muted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300',
       )}
     >
       {signed && value > 0 ? `+${value}` : value}

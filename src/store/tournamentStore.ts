@@ -138,6 +138,8 @@ interface TournamentState {
   createTournament: (name: string) => string;
   deleteTournament: (id: string) => void;
   duplicateTournament: (id: string) => string | null;
+  /** Add an imported tournament (deep-copied) with a fresh id. Returns the id. */
+  importTournament: (data: Tournament) => string;
   renameTournament: (id: string, name: string) => void;
   /** Validate and, if valid, generate the structure and move DRAFT → RUNNING. */
   launchTournament: (id: string) => SetupValidation;
@@ -157,6 +159,8 @@ interface TournamentState {
   // RUNNING editing
   recordResult: (id: string, matchId: string, input: RecordResultInput) => void;
   clearResult: (id: string, matchId: string) => void;
+  /** How many other recorded results this change would invalidate (for edit warnings). */
+  previewResultImpact: (id: string, matchId: string, input: RecordResultInput) => number;
 }
 
 export const useTournamentStore = create<TournamentState>()(
@@ -207,6 +211,16 @@ export const useTournamentStore = create<TournamentState>()(
           };
           set((state) => ({ tournaments: [copy, ...state.tournaments] }));
           return copy.id;
+        },
+
+        importTournament: (data) => {
+          const imported: Tournament = {
+            ...structuredClone(data),
+            id: createId(),
+            updatedAt: nowIso(),
+          };
+          set((state) => ({ tournaments: [imported, ...state.tournaments] }));
+          return imported.id;
         },
 
         renameTournament: (id, name) => update(id, (t) => ({ ...t, name })),
@@ -332,6 +346,38 @@ export const useTournamentStore = create<TournamentState>()(
             next.results = pruneResults(next);
             return { ...next, status: statusAfterResults(next) };
           }),
+
+        previewResultImpact: (id, matchId, input) => {
+          const tournament = get().tournaments.find((t) => t.id === id);
+          if (!tournament) return 0;
+          const resolved = resolve(tournament).byId[matchId];
+          if (
+            !resolved ||
+            resolved.sideA.kind !== 'PLAYER' ||
+            resolved.sideB.kind !== 'PLAYER'
+          ) {
+            return 0;
+          }
+          const simulated: Tournament = {
+            ...tournament,
+            results: {
+              ...tournament.results,
+              [matchId]: {
+                sideAPlayerId: resolved.sideA.playerId,
+                sideBPlayerId: resolved.sideB.playerId,
+                scoreA: input.scoreA ?? null,
+                scoreB: input.scoreB ?? null,
+                winnerId: input.winnerId,
+              },
+            },
+          };
+          const pruned = pruneResults(simulated);
+          let affected = 0;
+          for (const key of Object.keys(tournament.results)) {
+            if (key !== matchId && !(key in pruned)) affected += 1;
+          }
+          return affected;
+        },
       };
     },
     {

@@ -13,6 +13,9 @@ import { useTournamentStore } from '../../store/tournamentStore';
 import { cn } from '../../lib/cn';
 import { inputClass, SectionCard } from './controls';
 
+const moveButtonClass =
+  'rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300';
+
 export default function PlayersStep({ tournament }: { tournament: Tournament }) {
   const renameTournament = useTournamentStore((s) => s.renameTournament);
   const addPlayer = useTournamentStore((s) => s.addPlayer);
@@ -85,7 +88,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
           <button
             type="button"
             onClick={() => setShowBulk((v) => !v)}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
           >
             {showBulk ? 'Hide bulk add' : 'Add several at once'}
           </button>
@@ -93,7 +96,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
             <button
               type="button"
               onClick={() => shufflePlayers(id)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             >
               <Shuffle className="h-3.5 w-3.5" aria-hidden />
               Shuffle order
@@ -102,7 +105,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
         </div>
 
         {showBulk && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
             <textarea
               value={bulk}
               onChange={(e) => setBulk(e.target.value)}
@@ -115,7 +118,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
               <button
                 type="button"
                 onClick={handleBulkAdd}
-                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600"
               >
                 Add names
               </button>
@@ -124,15 +127,20 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
         )}
 
         {players.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 py-8 text-center">
-            <Users className="h-6 w-6 text-slate-300" aria-hidden />
-            <p className="text-sm text-slate-400">No players yet — add at least 2.</p>
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 py-8 text-center dark:border-slate-700">
+            <Users className="h-6 w-6 text-slate-300 dark:text-slate-600" aria-hidden />
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              No players yet — add at least 2.
+            </p>
           </div>
         ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
             {players.map((player, index) => (
-              <li key={player.id} className="flex items-center gap-2 bg-white px-2.5 py-1.5">
-                <span className="w-6 shrink-0 text-center text-xs font-semibold text-slate-400">
+              <li
+                key={player.id}
+                className="flex items-center gap-2 bg-white px-2.5 py-1.5 dark:bg-slate-900"
+              >
+                <span className="w-6 shrink-0 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
                   {index + 1}
                 </span>
                 <input
@@ -140,7 +148,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
                   value={player.name}
                   onChange={(e) => renamePlayer(id, player.id, e.target.value)}
                   aria-label={`Player ${index + 1} name`}
-                  className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm outline-none transition hover:border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                  className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm outline-none transition hover:border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 dark:text-slate-100 dark:hover:border-slate-700 dark:focus:ring-indigo-500/30"
                 />
                 <div className="flex shrink-0 items-center">
                   <button
@@ -148,7 +156,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
                     onClick={() => movePlayer(id, player.id, -1)}
                     disabled={index === 0}
                     aria-label={`Move ${player.name || 'player'} up`}
-                    className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className={moveButtonClass}
                   >
                     <ChevronUp className="h-4 w-4" aria-hidden />
                   </button>
@@ -157,7 +165,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
                     onClick={() => movePlayer(id, player.id, 1)}
                     disabled={index === players.length - 1}
                     aria-label={`Move ${player.name || 'player'} down`}
-                    className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className={moveButtonClass}
                   >
                     <ChevronDown className="h-4 w-4" aria-hidden />
                   </button>
@@ -165,7 +173,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
                     type="button"
                     onClick={() => removePlayer(id, player.id)}
                     aria-label={`Remove ${player.name || 'player'}`}
-                    className="ml-1 rounded p-1 text-slate-400 transition hover:bg-red-100 hover:text-red-600"
+                    className="ml-1 rounded p-1 text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-500/20 dark:hover:text-red-400"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden />
                   </button>
@@ -175,7 +183,7 @@ export default function PlayersStep({ tournament }: { tournament: Tournament }) 
           </ul>
         )}
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           {players.length} player{players.length === 1 ? '' : 's'}
         </p>
       </SectionCard>

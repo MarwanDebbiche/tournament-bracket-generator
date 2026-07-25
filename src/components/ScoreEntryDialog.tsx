@@ -22,6 +22,7 @@ export default function ScoreEntryDialog({
 }) {
   const recordResult = useTournamentStore((s) => s.recordResult);
   const clearResult = useTournamentStore((s) => s.clearResult);
+  const previewResultImpact = useTournamentStore((s) => s.previewResultImpact);
 
   const existing = match.result;
   const [winLossWinner, setWinLossWinner] = useState<string | null | undefined>(
@@ -57,13 +58,24 @@ export default function ScoreEntryDialog({
   const winnerId = scoreMode === 'NUMERIC' ? numericWinner : winLossWinner;
   const canSave = winnerId !== undefined;
 
+  const resultInput =
+    winnerId === undefined
+      ? null
+      : {
+          winnerId,
+          scoreA: scoreMode === 'NUMERIC' ? a : null,
+          scoreB: scoreMode === 'NUMERIC' ? b : null,
+        };
+
+  // Editing a played match can invalidate later matches that depend on it.
+  const impact =
+    existing && resultInput
+      ? previewResultImpact(tournamentId, match.id, resultInput)
+      : 0;
+
   const save = () => {
-    if (winnerId === undefined) return;
-    recordResult(tournamentId, match.id, {
-      winnerId,
-      scoreA: scoreMode === 'NUMERIC' ? a : null,
-      scoreB: scoreMode === 'NUMERIC' ? b : null,
-    });
+    if (!resultInput) return;
+    recordResult(tournamentId, match.id, resultInput);
     onClose();
   };
 
@@ -101,8 +113,8 @@ export default function ScoreEntryDialog({
           <ScoreRow name={nameOf(bId)} value={scoreB} onChange={setScoreB} />
 
           {isTie && !allowDraw && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs font-medium text-amber-700">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
                 Level score — who advances?
               </p>
               <div className="mt-2 space-y-2">
@@ -122,12 +134,19 @@ export default function ScoreEntryDialog({
         </div>
       )}
 
+      {impact > 0 && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Changing this result will clear {impact} later match
+          {impact === 1 ? '' : 'es'} that depend on it.
+        </p>
+      )}
+
       <div className="mt-5 flex items-center justify-between gap-2">
         {existing ? (
           <button
             type="button"
             onClick={handleClear}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
           >
             Clear result
           </button>
@@ -138,7 +157,7 @@ export default function ScoreEntryDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Cancel
           </button>
@@ -146,9 +165,9 @@ export default function ScoreEntryDialog({
             type="button"
             onClick={save}
             disabled={!canSave}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
           >
-            Save
+            {impact > 0 ? `Reset ${impact} & save` : 'Save'}
           </button>
         </div>
       </div>
@@ -174,13 +193,17 @@ function PickButton({
       className={cn(
         'flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition',
         selected
-          ? 'border-indigo-500 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-200'
-          : 'border-slate-200 text-slate-700 hover:border-slate-300',
-        muted && !selected && 'text-slate-500',
+          ? 'border-indigo-500 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-200 dark:border-indigo-400 dark:bg-indigo-500/10 dark:text-indigo-200 dark:ring-indigo-500/30'
+          : 'border-slate-200 text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600',
+        muted && !selected && 'text-slate-500 dark:text-slate-400',
       )}
     >
       <span className="truncate">{label}</span>
-      {selected && <span className="ml-2 text-xs font-semibold text-indigo-600">Winner</span>}
+      {selected && (
+        <span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300">
+          Winner
+        </span>
+      )}
     </button>
   );
 }
@@ -196,7 +219,7 @@ function ScoreRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3">
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">
         {name}
       </span>
       <input
@@ -206,7 +229,7 @@ function ScoreRow({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={`Score for ${name}`}
-        className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+        className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/30"
       />
     </label>
   );

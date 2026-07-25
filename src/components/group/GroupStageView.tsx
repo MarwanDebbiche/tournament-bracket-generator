@@ -35,14 +35,18 @@ export function GroupStageView({
         return (
           <section
             key={group.id}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">{group.name}</h3>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                {group.name}
+              </h3>
               <span
                 className={cn(
                   'inline-flex items-center gap-1 text-xs font-medium',
-                  complete ? 'text-emerald-600' : 'text-slate-400',
+                  complete
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-400 dark:text-slate-500',
                 )}
               >
                 {complete && <Check className="h-3.5 w-3.5" aria-hidden />}
@@ -60,7 +64,7 @@ export function GroupStageView({
             </div>
 
             <div className="mt-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Matches
               </div>
               <div className="space-y-2">

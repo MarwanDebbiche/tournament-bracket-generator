@@ -8,8 +8,10 @@ import ValidationPanel from './ValidationPanel';
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5">
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="text-right text-sm font-medium text-slate-800">{children}</dd>
+      <dt className="text-sm text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="text-right text-sm font-medium text-slate-800 dark:text-slate-100">
+        {children}
+      </dd>
     </div>
   );
 }
@@ -33,7 +35,7 @@ export default function ReviewStep({
   return (
     <div className="space-y-5">
       <SectionCard title="Summary">
-        <dl className="divide-y divide-slate-100">
+        <dl className="divide-y divide-slate-100 dark:divide-slate-800">
           <Row label="Name">{tournament.name}</Row>
           <Row label="Format">{formatLabel(config)}</Row>
           <Row label="Players">{players.length}</Row>
@@ -79,12 +81,14 @@ export default function ReviewStep({
             {players.map((player, index) => (
               <li
                 key={player.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-1 pr-3 pl-1.5 text-sm text-slate-700"
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-1 pr-3 pl-1.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-500">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                   {index + 1}
                 </span>
-                {player.name || <span className="text-slate-400">Unnamed</span>}
+                {player.name || (
+                  <span className="text-slate-400 dark:text-slate-500">Unnamed</span>
+                )}
               </li>
             ))}
           </ol>

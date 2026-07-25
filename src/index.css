@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+/* Class-based dark mode: `dark:` applies when a `.dark` ancestor is present. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -8,4 +18,8 @@ body,
 
 body {
   margin: 0;
+  background-color: #f8fafc; /* slate-50 */
+}
+.dark body {
+  background-color: #020617; /* slate-950 */
 }

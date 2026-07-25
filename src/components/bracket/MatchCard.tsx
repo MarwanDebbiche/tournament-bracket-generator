@@ -45,12 +45,12 @@ export function MatchCard({
           : undefined
       }
       className={cn(
-        'overflow-hidden rounded-lg border bg-white shadow-sm transition',
+        'overflow-hidden rounded-lg border bg-white shadow-sm transition dark:bg-slate-900',
         status === 'PENDING' && 'opacity-60',
         status === 'READY' && 'border-l-2 border-l-indigo-400',
         clickable
-          ? 'cursor-pointer border-slate-200 hover:border-indigo-300 hover:shadow'
-          : 'border-slate-200',
+          ? 'cursor-pointer border-slate-200 hover:border-indigo-300 hover:shadow dark:border-slate-800 dark:hover:border-indigo-500'
+          : 'border-slate-200 dark:border-slate-800',
       )}
     >
       <SideRow
@@ -59,9 +59,9 @@ export function MatchCard({
         isWinner={winnerId != null && playerIdOf(match.sideA) === winnerId}
         nameOf={nameOf}
       />
-      <div className="relative border-t border-slate-100">
+      <div className="relative border-t border-slate-100 dark:border-slate-800">
         {isDraw && (
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-100 px-1 text-[10px] font-medium tracking-wide text-slate-400">
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-100 px-1 text-[10px] font-medium tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
             DRAW
           </span>
         )}
@@ -97,10 +97,10 @@ function SideRow({
         className={cn(
           'truncate',
           isWinner
-            ? 'font-semibold text-slate-900'
+            ? 'font-semibold text-slate-900 dark:text-slate-100'
             : isPlaceholder
-              ? 'italic text-slate-300'
-              : 'text-slate-600',
+              ? 'italic text-slate-300 dark:text-slate-600'
+              : 'text-slate-600 dark:text-slate-300',
         )}
       >
         {label}
@@ -111,7 +111,9 @@ function SideRow({
           <span
             className={cn(
               'tabular-nums',
-              isWinner ? 'font-semibold text-slate-900' : 'text-slate-400',
+              isWinner
+                ? 'font-semibold text-slate-900 dark:text-slate-100'
+                : 'text-slate-400 dark:text-slate-500',
             )}
           >
             {score}

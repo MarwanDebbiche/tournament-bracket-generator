@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { useTournamentStore } from '../store/tournamentStore';
 import SetupWizard from '../components/setup/SetupWizard';
+import { ThemeToggle } from '../components/ui/ThemeToggle';
 
 export default function SetupPage() {
   const { id } = useParams();
@@ -10,22 +11,27 @@ export default function SetupPage() {
   );
 
   return (
-    <div className="min-h-full bg-slate-50 text-slate-900">
+    <div className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-800"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          All tournaments
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            All tournaments
+          </Link>
+          <ThemeToggle />
+        </div>
 
         {!tournament ? (
-          <p className="mt-8 text-slate-600">Tournament not found.</p>
+          <p className="mt-8 text-slate-600 dark:text-slate-300">
+            Tournament not found.
+          </p>
         ) : tournament.status !== 'DRAFT' ? (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h1 className="text-lg font-semibold">{tournament.name}</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               This tournament has already been launched, so its setup is locked.
             </p>
             <Link

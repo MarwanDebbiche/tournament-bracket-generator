@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 export const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/30';
 
 /**
  * Integer input that allows free typing (including a transient empty field) and
@@ -69,8 +69,10 @@ export function Field({
 }) {
   return (
     <div>
-      <div className="text-sm font-medium text-slate-700">{label}</div>
-      {hint && <div className="text-xs text-slate-400">{hint}</div>}
+      <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        {label}
+      </div>
+      {hint && <div className="text-xs text-slate-400 dark:text-slate-500">{hint}</div>}
       <div className="mt-1.5">{children}</div>
     </div>
   );
@@ -87,9 +89,15 @@ export function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        {title}
+      </h3>
+      {description && (
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
+      )}
       <div className="mt-4 space-y-4">{children}</div>
     </section>
   );
@@ -110,9 +118,13 @@ export function Toggle({
   return (
     <div className="flex items-center justify-between gap-4">
       <span>
-        <span className="block text-sm font-medium text-slate-700">{label}</span>
+        <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+          {label}
+        </span>
         {description && (
-          <span className="block text-xs text-slate-400">{description}</span>
+          <span className="block text-xs text-slate-400 dark:text-slate-500">
+            {description}
+          </span>
         )}
       </span>
       <button
@@ -123,7 +135,7 @@ export function Toggle({
         onClick={() => onChange(!checked)}
         className={cn(
           'relative h-6 w-11 shrink-0 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300',
-          checked ? 'bg-indigo-600' : 'bg-slate-300',
+          checked ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700',
         )}
       >
         <span
@@ -176,21 +188,22 @@ export function OptionCards<T extends string>({
             className={cn(
               'rounded-lg border p-3 text-left transition',
               selected
-                ? 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-200'
-                : 'border-slate-200 hover:border-slate-300',
-              option.disabled && 'cursor-not-allowed opacity-60 hover:border-slate-200',
+                ? 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-200 dark:border-indigo-400 dark:bg-indigo-500/10 dark:ring-indigo-500/30'
+                : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600',
+              option.disabled &&
+                'cursor-not-allowed opacity-60 hover:border-slate-200 dark:hover:border-slate-700',
             )}
           >
-            <span className="block text-sm font-semibold text-slate-800">
+            <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
               {option.label}
             </span>
             {option.description && !option.disabled && (
-              <span className="mt-0.5 block text-xs text-slate-500">
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
                 {option.description}
               </span>
             )}
             {option.disabled && option.disabledReason && (
-              <span className="mt-0.5 block text-xs text-amber-600">
+              <span className="mt-0.5 block text-xs text-amber-600 dark:text-amber-400">
                 {option.disabledReason}
               </span>
             )}

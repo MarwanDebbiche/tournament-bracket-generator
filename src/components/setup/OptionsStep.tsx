@@ -57,7 +57,7 @@ export default function OptionsStep({
         />
 
         {groupStage && (
-          <div className="space-y-4 border-t border-slate-100 pt-4">
+          <div className="space-y-4 border-t border-slate-100 pt-4 dark:border-slate-800">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Number of groups">
                 <IntInput
@@ -85,7 +85,7 @@ export default function OptionsStep({
               <div className="grid grid-cols-3 gap-3">
                 {(['win', 'draw', 'loss'] as const).map((key) => (
                   <label key={key} className="block">
-                    <span className="mb-1 block text-xs capitalize text-slate-500">
+                    <span className="mb-1 block text-xs capitalize text-slate-500 dark:text-slate-400">
                       {key}
                     </span>
                     <IntInput
@@ -106,7 +106,7 @@ export default function OptionsStep({
               </div>
             </Field>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               Ties are broken by head-to-head, then goal difference, goals for, and
               wins.
             </p>

@@ -7,7 +7,7 @@ type SelectFn = (matchId: string) => void;
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {title}
       </h3>
       {children}
@@ -28,7 +28,7 @@ function Column({
 }) {
   return (
     <div className="flex min-w-[200px] flex-col">
-      <div className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+      <div className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
         {title}
       </div>
       <div className="flex flex-1 flex-col justify-around gap-4">
