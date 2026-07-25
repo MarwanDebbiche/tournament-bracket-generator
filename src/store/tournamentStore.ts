@@ -5,15 +5,14 @@ import type {
   GroupStageConfig,
   MatchResult,
   Player,
+  Slot,
   Tournament,
 } from '../engine/types';
 import { validateSetup } from '../engine/validation';
 import type { SetupValidation } from '../engine/validation';
 import { resolve } from '../engine/resolve';
-import {
-  buildSingleEliminationFromEntrants,
-  generateSingleElimination,
-} from '../engine/formats/singleElimination';
+import { buildSingleEliminationFromEntrants } from '../engine/formats/singleElimination';
+import { buildDoubleEliminationFromEntrants } from '../engine/formats/doubleElimination';
 import { generateGroupStage, groupRankEntrants } from '../engine/formats/groupStage';
 import { createId } from '../lib/id';
 
@@ -77,37 +76,39 @@ function pruneResults(tournament: Tournament): Record<string, MatchResult> {
 }
 
 /**
- * Generate the structure for a launched tournament. Supports single elimination
- * with or without a group stage; double elimination is generated in a later
- * milestone (until then it launches with no matches and shows a placeholder).
+ * Generate the structure for a launched tournament: an optional group stage
+ * feeding a single- or double-elimination knockout. Covers all four format
+ * combinations.
  */
 function buildStructure(
   tournament: Tournament,
 ): Pick<Tournament, 'players' | 'groups' | 'matches'> {
   const { config, players } = tournament;
   const seeded = config.seeding === 'RANDOM' ? shuffle(players) : [...players];
-  const single = config.knockout.type === 'SINGLE_ELIM';
-  const thirdPlaceMatch = config.knockout.thirdPlaceMatch;
 
-  if (config.groupStage && single) {
-    const { groups, matches: groupMatches } = generateGroupStage(
-      seeded,
-      config.groupStage.numGroups,
-    );
-    const entrants = groupRankEntrants(groups, config.groupStage.advancePerGroup);
-    const knockout = buildSingleEliminationFromEntrants(entrants, { thirdPlaceMatch });
-    return { players: seeded, groups, matches: [...groupMatches, ...knockout] };
+  let groups: Tournament['groups'] = [];
+  let groupMatches: Tournament['matches'] = [];
+  let entrants: Slot[];
+
+  if (config.groupStage) {
+    const generated = generateGroupStage(seeded, config.groupStage.numGroups);
+    groups = generated.groups;
+    groupMatches = generated.matches;
+    entrants = groupRankEntrants(groups, config.groupStage.advancePerGroup);
+  } else {
+    entrants = seeded.map((p) => ({ kind: 'PLAYER', playerId: p.id }));
   }
 
-  if (!config.groupStage && single) {
-    return {
-      players: seeded,
-      groups: [],
-      matches: generateSingleElimination(seeded, { thirdPlaceMatch }),
-    };
-  }
+  const knockout =
+    config.knockout.type === 'SINGLE_ELIM'
+      ? buildSingleEliminationFromEntrants(entrants, {
+          thirdPlaceMatch: config.knockout.thirdPlaceMatch,
+        })
+      : buildDoubleEliminationFromEntrants(entrants, {
+          grandFinalReset: config.knockout.grandFinalReset,
+        });
 
-  return { players: seeded, groups: [], matches: [] };
+  return { players: seeded, groups, matches: [...groupMatches, ...knockout] };
 }
 
 function statusAfterResults(tournament: Tournament): Tournament['status'] {

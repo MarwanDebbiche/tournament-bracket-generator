@@ -7,6 +7,7 @@ import { resolve } from '../engine/resolve';
 import { formatLabel } from '../lib/format';
 import { cn } from '../lib/cn';
 import { BracketView } from '../components/bracket/BracketView';
+import { DoubleElimBracket } from '../components/bracket/DoubleElimBracket';
 import { ChampionBanner } from '../components/bracket/ChampionBanner';
 import { GroupStageView } from '../components/group/GroupStageView';
 import ScoreEntryDialog from '../components/ScoreEntryDialog';
@@ -39,7 +40,9 @@ export default function TournamentPage() {
 
   const hasGroupStage = tournament.groups.length > 0;
   const hasKnockout = tournament.matches.some((m) => m.phase === 'WINNERS');
-  const doneCount = derived.matches.filter((m) => m.status === 'DONE').length;
+  const isDoubleElim = tournament.matches.some((m) => m.phase === 'GRAND_FINAL');
+  const playedMatches = derived.matches.filter((m) => !m.skipped);
+  const doneCount = playedMatches.filter((m) => m.status === 'DONE').length;
   const editingMatch = editingMatchId ? derived.byId[editingMatchId] : null;
 
   const handleReset = () => {
@@ -69,7 +72,7 @@ export default function TournamentPage() {
       </div>
       <p className="mt-1 text-sm text-slate-500">
         {formatLabel(tournament.config)} · {tournament.players.length} players ·{' '}
-        {doneCount}/{derived.matches.length} matches played
+        {doneCount}/{playedMatches.length} matches played
       </p>
 
       {derived.champion && (
@@ -103,11 +106,19 @@ export default function TournamentPage() {
               Knockout
             </h2>
           )}
-          <BracketView
-            derived={derived}
-            nameOf={nameOf}
-            onSelectMatch={setEditingMatchId}
-          />
+          {isDoubleElim ? (
+            <DoubleElimBracket
+              derived={derived}
+              nameOf={nameOf}
+              onSelectMatch={setEditingMatchId}
+            />
+          ) : (
+            <BracketView
+              derived={derived}
+              nameOf={nameOf}
+              onSelectMatch={setEditingMatchId}
+            />
+          )}
         </section>
       )}
 
