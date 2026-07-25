@@ -77,15 +77,20 @@ export interface Match {
   groupId?: string;
 }
 
-export type Outcome = 'A' | 'B' | 'DRAW';
-
 export interface MatchResult {
-  /** null in WIN_LOSS score mode. */
+  /**
+   * Participant ids at the moment the result was recorded. Because a match's
+   * entrants are derived from upstream results, these let `resolve()` detect a
+   * result that no longer matches its match (an upstream edit changed who is
+   * playing) and treat it as stale.
+   */
+  sideAPlayerId: string;
+  sideBPlayerId: string;
+  /** Numeric scores when scoreMode is NUMERIC; null in WIN_LOSS mode. */
   scoreA: number | null;
   scoreB: number | null;
-  outcome: Outcome;
-  /** Level scoreline in a knockout match, but a winner was chosen. */
-  settledByTiebreak?: boolean;
+  /** Winner's player id; null only for a draw (group phase only). */
+  winnerId: string | null;
 }
 
 export interface Group {
