@@ -6,31 +6,28 @@ export interface SingleElimOptions {
   thirdPlaceMatch?: boolean;
 }
 
-function seedToSlot(seed: number, playerCount: number, players: Player[]): Slot {
-  return seed <= playerCount
-    ? { kind: 'PLAYER', playerId: players[seed - 1].id }
-    : { kind: 'BYE' };
-}
-
 /**
- * Build the single-elimination match structure for players given in seed order
- * (players[0] is the top seed). The field is padded to the next power of two
- * with byes assigned to the top seeds. Match ids are deterministic so the
- * structure is stable across regeneration.
+ * Build a single-elimination bracket from entrants given in seed order
+ * (entrants[0] is the top seed). Each entrant is a slot — a concrete player, or
+ * a placeholder such as a group-rank reference. The field is padded to the next
+ * power of two with byes assigned to the top seeds. Match ids are deterministic.
  */
-export function generateSingleElimination(
-  players: Player[],
+export function buildSingleEliminationFromEntrants(
+  entrants: Slot[],
   options: SingleElimOptions = {},
 ): Match[] {
-  const playerCount = players.length;
-  if (playerCount < 2) {
-    throw new Error('Single elimination needs at least 2 players.');
+  const entrantCount = entrants.length;
+  if (entrantCount < 2) {
+    throw new Error('Single elimination needs at least 2 entrants.');
   }
 
-  const size = nextPowerOfTwo(playerCount);
+  const size = nextPowerOfTwo(entrantCount);
   const order = seedOrder(size);
   const rounds = Math.round(Math.log2(size));
   const matches: Match[] = [];
+
+  const slotForSeed = (seed: number): Slot =>
+    seed <= entrantCount ? entrants[seed - 1] : { kind: 'BYE' };
 
   // First round, seeded from the standard order.
   const firstRound: Match[] = [];
@@ -40,8 +37,8 @@ export function generateSingleElimination(
       phase: 'WINNERS',
       round: 0,
       order: i,
-      slotA: seedToSlot(order[2 * i], playerCount, players),
-      slotB: seedToSlot(order[2 * i + 1], playerCount, players),
+      slotA: slotForSeed(order[2 * i]),
+      slotB: slotForSeed(order[2 * i + 1]),
     });
   }
   matches.push(...firstRound);
@@ -90,4 +87,15 @@ export function generateSingleElimination(
   }
 
   return matches;
+}
+
+/** Build a single-elimination bracket directly from players in seed order. */
+export function generateSingleElimination(
+  players: Player[],
+  options: SingleElimOptions = {},
+): Match[] {
+  return buildSingleEliminationFromEntrants(
+    players.map((p) => ({ kind: 'PLAYER', playerId: p.id })),
+    options,
+  );
 }

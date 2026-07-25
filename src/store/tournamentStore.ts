@@ -10,7 +10,11 @@ import type {
 import { validateSetup } from '../engine/validation';
 import type { SetupValidation } from '../engine/validation';
 import { resolve } from '../engine/resolve';
-import { generateSingleElimination } from '../engine/formats/singleElimination';
+import {
+  buildSingleEliminationFromEntrants,
+  generateSingleElimination,
+} from '../engine/formats/singleElimination';
+import { generateGroupStage, groupRankEntrants } from '../engine/formats/groupStage';
 import { createId } from '../lib/id';
 
 const STORAGE_KEY = 'tbg-storage';
@@ -72,17 +76,38 @@ function pruneResults(tournament: Tournament): Record<string, MatchResult> {
   return kept;
 }
 
-/** Generate the match structure for a launched tournament (single-elim for now). */
-function buildStructure(tournament: Tournament): Pick<Tournament, 'players' | 'matches'> {
+/**
+ * Generate the structure for a launched tournament. Supports single elimination
+ * with or without a group stage; double elimination is generated in a later
+ * milestone (until then it launches with no matches and shows a placeholder).
+ */
+function buildStructure(
+  tournament: Tournament,
+): Pick<Tournament, 'players' | 'groups' | 'matches'> {
   const { config, players } = tournament;
   const seeded = config.seeding === 'RANDOM' ? shuffle(players) : [...players];
-  const canGenerate = !config.groupStage && config.knockout.type === 'SINGLE_ELIM';
-  const matches = canGenerate
-    ? generateSingleElimination(seeded, {
-        thirdPlaceMatch: config.knockout.thirdPlaceMatch,
-      })
-    : [];
-  return { players: seeded, matches };
+  const single = config.knockout.type === 'SINGLE_ELIM';
+  const thirdPlaceMatch = config.knockout.thirdPlaceMatch;
+
+  if (config.groupStage && single) {
+    const { groups, matches: groupMatches } = generateGroupStage(
+      seeded,
+      config.groupStage.numGroups,
+    );
+    const entrants = groupRankEntrants(groups, config.groupStage.advancePerGroup);
+    const knockout = buildSingleEliminationFromEntrants(entrants, { thirdPlaceMatch });
+    return { players: seeded, groups, matches: [...groupMatches, ...knockout] };
+  }
+
+  if (!config.groupStage && single) {
+    return {
+      players: seeded,
+      groups: [],
+      matches: generateSingleElimination(seeded, { thirdPlaceMatch }),
+    };
+  }
+
+  return { players: seeded, groups: [], matches: [] };
 }
 
 function statusAfterResults(tournament: Tournament): Tournament['status'] {
@@ -210,6 +235,7 @@ export const useTournamentStore = create<TournamentState>()(
           update(id, (t) => ({
             ...t,
             status: 'DRAFT',
+            groups: [],
             matches: [],
             results: {},
           })),

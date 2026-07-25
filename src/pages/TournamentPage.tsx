@@ -8,6 +8,7 @@ import { formatLabel } from '../lib/format';
 import { cn } from '../lib/cn';
 import { BracketView } from '../components/bracket/BracketView';
 import { ChampionBanner } from '../components/bracket/ChampionBanner';
+import { GroupStageView } from '../components/group/GroupStageView';
 import ScoreEntryDialog from '../components/ScoreEntryDialog';
 
 export default function TournamentPage() {
@@ -36,7 +37,8 @@ export default function TournamentPage() {
     );
   }
 
-  const hasBracket = tournament.matches.length > 0;
+  const hasGroupStage = tournament.groups.length > 0;
+  const hasKnockout = tournament.matches.some((m) => m.phase === 'WINNERS');
   const doneCount = derived.matches.filter((m) => m.status === 'DONE').length;
   const editingMatch = editingMatchId ? derived.byId[editingMatchId] : null;
 
@@ -80,22 +82,42 @@ export default function TournamentPage() {
         </div>
       )}
 
-      {hasBracket ? (
-        <div className="mt-8">
+      {hasGroupStage && (
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            Group stage
+          </h2>
+          <GroupStageView
+            tournament={tournament}
+            derived={derived}
+            nameOf={nameOf}
+            onSelectMatch={setEditingMatchId}
+          />
+        </section>
+      )}
+
+      {hasKnockout && (
+        <section className="mt-8">
+          {hasGroupStage && (
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+              Knockout
+            </h2>
+          )}
           <BracketView
             derived={derived}
             nameOf={nameOf}
             onSelectMatch={setEditingMatchId}
           />
-        </div>
-      ) : (
+        </section>
+      )}
+
+      {!hasGroupStage && !hasKnockout && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-6">
           <ListTree className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" aria-hidden />
           <div className="text-sm text-slate-600">
             <p className="font-medium text-slate-800">Coming soon</p>
             <p className="mt-1">
-              Group standings and the double-elimination bracket arrive in the next
-              milestones (M3–M4).
+              The double-elimination bracket arrives in the next milestone (M4).
             </p>
           </div>
         </div>

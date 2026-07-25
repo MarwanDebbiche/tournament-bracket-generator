@@ -19,6 +19,11 @@ export function MatchCard({
   const clickable =
     Boolean(onSelect) &&
     (status === 'READY' || (status === 'DONE' && !isWalkover));
+  const isDraw =
+    status === 'DONE' &&
+    winnerId == null &&
+    match.sideA.kind === 'PLAYER' &&
+    match.sideB.kind === 'PLAYER';
 
   const activate = () => {
     if (clickable) onSelect?.(match.id);
@@ -54,7 +59,13 @@ export function MatchCard({
         isWinner={winnerId != null && playerIdOf(match.sideA) === winnerId}
         nameOf={nameOf}
       />
-      <div className="border-t border-slate-100" />
+      <div className="relative border-t border-slate-100">
+        {isDraw && (
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-100 px-1 text-[10px] font-medium tracking-wide text-slate-400">
+            DRAW
+          </span>
+        )}
+      </div>
       <SideRow
         side={match.sideB}
         score={match.result?.scoreB ?? null}
