@@ -2,8 +2,24 @@ import type { Match, Player, Side, Slot } from '../types';
 import { nextPowerOfTwo } from '../validation';
 import { seedOrder } from '../seeding';
 
+/** Maps LB-major-round slot `i` to a winners-bracket dropout index. */
+export type DropIndex = (slot: number, count: number, major: number) => number;
+
+/**
+ * Where each winners-bracket dropout enters a losers-bracket major round.
+ * Reversing the dropouts avoids the immediate rematch; additionally rotating by
+ * a half on alternate major rounds keeps players from meeting a prior winners-
+ * bracket opponent until much later. (`major` is 1-based: 1 = first major round.)
+ */
+export const defaultDropIndex: DropIndex = (slot, count, major) => {
+  const reversed = count - 1 - slot;
+  return major % 2 === 0 ? (reversed + Math.floor(count / 2)) % count : reversed;
+};
+
 export interface DoubleElimOptions {
   grandFinalReset?: boolean;
+  /** Override losers-bracket drop placement (used for analysis/testing). */
+  dropIndex?: DropIndex;
 }
 
 function linkTo(from: Match, key: 'winnerTo' | 'loserTo', matchId: string, side: Side) {
@@ -16,8 +32,9 @@ function linkTo(from: Match, key: 'winnerTo' | 'loserTo', matchId: string, side:
  * Winners bracket is a single-elimination bracket; every winners match sends its
  * loser into the losers bracket. The losers bracket alternates minor rounds (LB
  * survivors play each other) and major rounds (LB survivors meet the fresh
- * winners-bracket dropouts, assigned in reversed order to reduce early
- * rematches). The winners- and losers-bracket champions meet in the grand final;
+ * winners-bracket dropouts, placed via `defaultDropIndex` to avoid rematching a
+ * winners-bracket opponent early). The winners- and losers-bracket champions
+ * meet in the grand final;
  * with `grandFinalReset`, a second grand final is played if the losers-bracket
  * player wins the first (resolve() decides whether it is needed).
  */
@@ -101,13 +118,14 @@ export function buildDoubleEliminationFromEntrants(
     matches.push(...minor);
     lbRound = 1;
 
+    const dropIndex = options.dropIndex ?? defaultDropIndex;
     for (let j = 1; j < rounds; j++) {
       // Major round: LB survivors meet winners-bracket round-j dropouts.
       const prevLB = lbRounds[lbRounds.length - 1];
       const dropouts = wbRounds[j];
       const major: Match[] = [];
       for (let i = 0; i < prevLB.length; i++) {
-        const drop = dropouts[dropouts.length - 1 - i]; // reversed
+        const drop = dropouts[dropIndex(i, dropouts.length, j)];
         const m: Match = {
           id: `L-${lbRound}-${i}`,
           phase: 'LOSERS',

@@ -1,6 +1,7 @@
 import type { Group, Match, MatchResult, Slot, Tournament } from './types';
 import { computeStandings } from './standings';
 import type { StandingRow, StandingsOptions } from './standings';
+import { nextPowerOfTwo } from './validation';
 
 /** A match slot resolved to a concrete occupant. */
 export type ResolvedSide =
@@ -154,24 +155,90 @@ function pointsPerGame(row: StandingRow): number {
   return row.played > 0 ? row.points / row.played : 0;
 }
 
+interface SeededQualifier {
+  playerId: string;
+  groupId: string;
+}
+
+/** First-round opponent seed: bracket seeding pairs seed s with size+1-s. */
+function firstRoundPartner(seed: number, size: number): number {
+  return size + 1 - seed;
+}
+
+/**
+ * Reorder qualifiers within their seeding bands so two from the same group don't
+ * meet in knockout round one. Only non-bye seeds are moved (byes stay on the top
+ * seeds by merit) and swaps stay within a band (winners stay above runners-up),
+ * so merit is preserved apart from the minimal shuffle needed. Best-effort: a
+ * swap is made only when it fixes a clash without creating a new one.
+ */
+function avoidSameGroupFirstRound(seeds: SeededQualifier[], numGroups: number): void {
+  const count = seeds.length;
+  if (count < 2 || numGroups < 1) return;
+  const size = nextPowerOfTwo(count);
+  const byes = size - count;
+  const groupAt = (seed: number): string | null =>
+    seed >= 1 && seed <= count ? seeds[seed - 1].groupId : null;
+
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 200) {
+    changed = false;
+    guard += 1;
+    for (let seed = 1; seed <= count; seed += 1) {
+      const partner = firstRoundPartner(seed, size);
+      if (partner <= seed || partner > count) continue; // one real pair per iteration
+      if (groupAt(seed) !== groupAt(partner)) continue; // no clash
+
+      // Move the worse (higher-numbered) side to another slot in its band.
+      const bandStart = Math.floor((partner - 1) / numGroups) * numGroups + 1;
+      const bandEnd = Math.min(bandStart + numGroups - 1, count);
+      const movingGroup = seeds[partner - 1].groupId;
+      const opponentGroup = seeds[seed - 1].groupId;
+
+      let target: number | null = null;
+      for (let t = bandStart; t <= bandEnd; t += 1) {
+        if (t === partner || t <= byes) continue; // keep byes on the top seeds
+        const tPartner = firstRoundPartner(t, size);
+        if (tPartner === partner) continue;
+        if (groupAt(t) === opponentGroup) continue; // would still clash at `partner`
+        if (groupAt(tPartner) === movingGroup) continue; // would create a clash at `t`
+        if (target === null || Math.abs(t - partner) < Math.abs(target - partner)) {
+          target = t;
+        }
+      }
+
+      if (target !== null) {
+        const i = partner - 1;
+        const j = target - 1;
+        [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
+        changed = true;
+      }
+    }
+  }
+}
+
 /**
  * Overall knockout seeding of the group qualifiers, best first. Group winners
  * are seeded above runners-up (and so on); within each rank band, qualifiers
  * are ordered by their group-stage record — points per game (fair across
  * uneven groups), then goal difference, goals for, and wins — so byes and
  * favorable slots go to the best performers. Ties fall back to group order.
+ * A final pass keeps two qualifiers from the same group from meeting in round
+ * one (without disturbing byes).
  */
 export function seedQualifiers(
   groups: Group[],
   standings: Record<string, StandingRow[]>,
   advancePerGroup: number,
 ): string[] {
-  const seeding: string[] = [];
+  const seeds: SeededQualifier[] = [];
   for (let rank = 0; rank < advancePerGroup; rank++) {
     const band = groups
-      .map((group, index) => ({ index, row: standings[group.id]?.[rank] }))
-      .filter((entry): entry is { index: number; row: StandingRow } =>
-        Boolean(entry.row),
+      .map((group, index) => ({ index, groupId: group.id, row: standings[group.id]?.[rank] }))
+      .filter(
+        (entry): entry is { index: number; groupId: string; row: StandingRow } =>
+          Boolean(entry.row),
       )
       .sort(
         (a, b) =>
@@ -181,9 +248,12 @@ export function seedQualifiers(
           b.row.won - a.row.won ||
           a.index - b.index,
       );
-    for (const entry of band) seeding.push(entry.row.playerId);
+    for (const entry of band) {
+      seeds.push({ playerId: entry.row.playerId, groupId: entry.groupId });
+    }
   }
-  return seeding;
+  avoidSameGroupFirstRound(seeds, groups.length);
+  return seeds.map((s) => s.playerId);
 }
 
 /**

@@ -146,4 +146,40 @@ describe('seedQualifiers — merit seeding', () => {
     };
     expect(seedQualifiers(uneven, standings, 1)).toEqual(['a', 'b']);
   });
+
+  it('keeps same-group qualifiers out of round one without disturbing byes', () => {
+    // Crafted so pure merit would pair a group with itself in round 1:
+    // G0 has the best winner (seed 1) and the worst runner-up (seed 8),
+    // which the bracket pairs together — the avoidance pass must fix it.
+    const fourGroups: Group[] = [
+      { id: 'G0', name: 'A', playerIds: [] },
+      { id: 'G1', name: 'B', playerIds: [] },
+      { id: 'G2', name: 'C', playerIds: [] },
+      { id: 'G3', name: 'D', playerIds: [] },
+    ];
+    const groupOf: Record<string, string> = {
+      w0: 'G0', r0: 'G0', w1: 'G1', r1: 'G1',
+      w2: 'G2', r2: 'G2', w3: 'G3', r3: 'G3',
+    };
+    const standings = {
+      G0: [standingRow('w0', 10), standingRow('r0', 1)],
+      G1: [standingRow('w1', 9), standingRow('r1', 4)],
+      G2: [standingRow('w2', 8), standingRow('r2', 3)],
+      G3: [standingRow('w3', 7), standingRow('r3', 2)],
+    };
+
+    const seeds = seedQualifiers(fourGroups, standings, 2);
+
+    // All 8 qualifiers still present exactly once.
+    expect(new Set(seeds).size).toBe(8);
+    // Top seeds (would-be byes) keep merit order: winners ahead of runners-up.
+    expect(seeds.slice(0, 4)).toEqual(['w0', 'w1', 'w2', 'w3']);
+    // No same-group pairing in round one (8-slot bracket pairs seed s with 9-s).
+    const size = 8;
+    for (let s = 1; s <= seeds.length; s += 1) {
+      const p = size + 1 - s;
+      if (p <= s || p > seeds.length) continue;
+      expect(groupOf[seeds[s - 1]]).not.toBe(groupOf[seeds[p - 1]]);
+    }
+  });
 });
