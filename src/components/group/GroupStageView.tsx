@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import type { DerivedState } from '../../engine/resolve';
+import type { DerivedState, ResolvedMatch } from '../../engine/resolve';
 import type { Tournament } from '../../engine/types';
 import { cn } from '../../lib/cn';
 import { MatchCard } from '../bracket/MatchCard';
@@ -32,6 +32,14 @@ export function GroupStageView({
           );
         const played = groupMatches.filter((m) => m.status === 'DONE').length;
 
+        // Group the round-robin matches by matchday (already sorted by round).
+        const matchdays: { round: number; matches: ResolvedMatch[] }[] = [];
+        for (const m of groupMatches) {
+          const last = matchdays[matchdays.length - 1];
+          if (last && last.round === m.match.round) last.matches.push(m);
+          else matchdays.push({ round: m.match.round, matches: [m] });
+        }
+
         return (
           <section
             key={group.id}
@@ -63,20 +71,24 @@ export function GroupStageView({
               />
             </div>
 
-            <div className="mt-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                Matches
-              </div>
-              <div className="space-y-2">
-                {groupMatches.map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    match={m}
-                    nameOf={nameOf}
-                    onSelect={onSelectMatch}
-                  />
-                ))}
-              </div>
+            <div className="mt-4 space-y-3">
+              {matchdays.map(({ round, matches }) => (
+                <div key={round}>
+                  <div className="mb-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
+                    Round {round + 1}
+                  </div>
+                  <div className="space-y-2">
+                    {matches.map((m) => (
+                      <MatchCard
+                        key={m.id}
+                        match={m}
+                        nameOf={nameOf}
+                        onSelect={onSelectMatch}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         );
