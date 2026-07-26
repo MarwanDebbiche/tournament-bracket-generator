@@ -7,6 +7,7 @@ import type { Tournament, TournamentStatus } from '../engine/types';
 import { formatDate, formatLabel } from '../lib/format';
 import { downloadTournamentJson, parseTournamentFile } from '../lib/exportImport';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { confirm } from '../components/ui/confirm';
 
 const STATUS_STYLES: Record<TournamentStatus, string> = {
   DRAFT:
@@ -147,10 +148,14 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
     navigate(path);
   };
 
-  const handleDelete = () => {
-    if (window.confirm(`Delete “${tournament.name}”? This cannot be undone.`)) {
-      deleteTournament(tournament.id);
-    }
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete tournament',
+      message: `Delete “${tournament.name}”? This can’t be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (ok) deleteTournament(tournament.id);
   };
 
   return (

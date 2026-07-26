@@ -11,6 +11,7 @@ import { DoubleElimBracket } from '../components/bracket/DoubleElimBracket';
 import { ChampionBanner } from '../components/bracket/ChampionBanner';
 import { GroupStageView } from '../components/group/GroupStageView';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { confirm } from '../components/ui/confirm';
 import ScoreEntryDialog from '../components/ScoreEntryDialog';
 
 const SECTION_HEADING =
@@ -50,12 +51,15 @@ export default function TournamentPage() {
   const doneCount = playedMatches.filter((m) => m.status === 'DONE').length;
   const editingMatch = editingMatchId ? derived.byId[editingMatchId] : null;
 
-  const handleReset = () => {
-    if (
-      window.confirm(
-        'Reset this tournament? All recorded results will be cleared and it returns to setup.',
-      )
-    ) {
+  const handleReset = async () => {
+    const ok = await confirm({
+      title: 'Reset tournament',
+      message:
+        'All recorded results will be cleared and the tournament returns to setup.',
+      confirmLabel: 'Reset',
+      danger: true,
+    });
+    if (ok) {
       resetTournament(tournament.id);
       navigate(`/setup/${tournament.id}`);
     }
