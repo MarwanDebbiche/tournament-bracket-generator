@@ -31,7 +31,7 @@ function countRematches(n: number, sims: number, dropIndex?: DropIndex) {
   for (let sim = 0; sim < sims; sim++) {
     const t: Tournament = {
       id: 't', name: 't', status: 'RUNNING',
-      config: { groupStage: null, knockout: { type: 'DOUBLE_ELIM' }, seeding: 'MANUAL', scoreMode: 'WIN_LOSS' },
+      config: { groupStage: null, swiss: null, knockout: { type: 'DOUBLE_ELIM' }, seeding: 'MANUAL', scoreMode: 'WIN_LOSS' },
       players, groups: [], matches: structure, results: {}, createdAt: '', updatedAt: '',
     };
     let guard = 0;

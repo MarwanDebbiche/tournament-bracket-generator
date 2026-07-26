@@ -18,6 +18,7 @@ function deTournament(n: number, grandFinalReset = false): Tournament {
     status: 'RUNNING',
     config: {
       groupStage: null,
+      swiss: null,
       knockout: { type: 'DOUBLE_ELIM', grandFinalReset },
       seeding: 'MANUAL',
       scoreMode: 'WIN_LOSS',

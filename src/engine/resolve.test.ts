@@ -18,6 +18,7 @@ function makeTournament(n: number, thirdPlaceMatch = false): Tournament {
     status: 'RUNNING',
     config: {
       groupStage: null,
+      swiss: null,
       knockout: { type: 'SINGLE_ELIM', thirdPlaceMatch },
       seeding: 'MANUAL',
       scoreMode: 'WIN_LOSS',

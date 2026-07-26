@@ -24,7 +24,8 @@ export default function ReviewStep({
   validation: SetupValidation;
 }) {
   const { config, players } = tournament;
-  const { groupStage, knockout, seeding, scoreMode } = config;
+  const { groupStage, swiss, knockout, seeding, scoreMode } = config;
+  const hasKnockout = knockout.type !== 'NONE';
 
   const seedingLabel: Record<typeof seeding, string> = {
     RANDOM: 'Random',
@@ -49,11 +50,22 @@ export default function ReviewStep({
               </Row>
             </>
           )}
-          <Row label="Elimination">
-            {knockout.type === 'DOUBLE_ELIM'
-              ? 'Double elimination'
-              : 'Single elimination'}
-          </Row>
+          {swiss && (
+            <>
+              <Row label="Swiss rounds">{swiss.rounds}</Row>
+              <Row label="Points (W / D / L)">
+                {swiss.points.win} / {swiss.points.draw} / {swiss.points.loss}
+              </Row>
+              {hasKnockout && <Row label="Advance to knockout">{swiss.advance}</Row>}
+            </>
+          )}
+          {hasKnockout && (
+            <Row label="Elimination">
+              {knockout.type === 'DOUBLE_ELIM'
+                ? 'Double elimination'
+                : 'Single elimination'}
+            </Row>
+          )}
           {knockout.type === 'SINGLE_ELIM' && knockout.thirdPlaceMatch && (
             <Row label="Third-place match">Yes</Row>
           )}

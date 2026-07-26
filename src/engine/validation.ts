@@ -9,7 +9,7 @@ export function nextPowerOfTwo(n: number): number {
 }
 
 export interface KnockoutInfo {
-  /** Players/qualifiers entering the elimination stage. */
+  /** Players/qualifiers entering the elimination stage (0 when there is none). */
   entrants: number;
   /** Next power of two >= entrants (0 when there are too few entrants). */
   bracketSize: number;
@@ -24,8 +24,8 @@ export interface SetupValidation {
   warnings: string[];
   knockout: KnockoutInfo;
   /**
-   * Number of real matches that will actually be contested — group games plus
-   * knockout games, excluding byes/walkovers and the conditional grand-final
+   * Number of real matches that will actually be contested — group/Swiss games
+   * plus knockout games, excluding byes/walkovers and the conditional grand-final
    * reset (which may not be needed).
    */
   totalMatches: number;
@@ -67,10 +67,28 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
     warnings.push(`Duplicate player names: ${duplicates.join(', ')}.`);
   }
 
-  // Entrants into the knockout stage.
   const playerCount = players.length;
   const group = config.groupStage;
-  let entrants: number;
+  const swiss = config.swiss;
+  const type = config.knockout.type;
+  const hasKnockout = type !== 'NONE';
+
+  // Format sanity: exactly one first stage, and something must decide a winner.
+  if (group && swiss) {
+    errors.push('Choose either a group stage or a Swiss stage, not both.');
+  }
+  if (!hasKnockout && !swiss) {
+    errors.push(
+      'Choose a knockout format (only a Swiss stage can decide a winner on its own).',
+    );
+  }
+
+  if (playerCount < 2) {
+    errors.push('At least 2 players are needed to run a tournament.');
+  }
+
+  // Players entering the knockout stage.
+  let entrants = 0;
 
   if (group) {
     if (group.numGroups < 1) errors.push('There must be at least 1 group.');
@@ -92,16 +110,35 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
     }
 
     entrants = group.numGroups * group.advancePerGroup;
+  } else if (swiss) {
+    if (swiss.rounds < 1) {
+      errors.push('The Swiss stage needs at least 1 round.');
+    } else if (playerCount >= 2 && swiss.rounds > playerCount - 1) {
+      errors.push(
+        `${playerCount} players can play at most ${playerCount - 1} Swiss rounds.`,
+      );
+    }
+
+    if (hasKnockout) {
+      if (swiss.advance < 2) {
+        errors.push('At least 2 players must advance to the knockout.');
+      } else if (swiss.advance > playerCount) {
+        errors.push(`Can't advance ${swiss.advance} players from ${playerCount}.`);
+      } else if (swiss.advance === playerCount && playerCount >= 2) {
+        warnings.push('Every player advances — the Swiss stage only seeds the knockout.');
+      }
+      entrants = swiss.advance;
+    }
   } else {
     entrants = playerCount;
   }
 
-  if (entrants < 2) {
-    errors.push('At least 2 players are needed to run a bracket.');
+  if (group && hasKnockout && entrants < 2 && playerCount >= 2) {
+    errors.push('At least 2 players must reach the knockout stage.');
   }
 
   // Double elimination with 2 entrants collapses to a single final.
-  if (config.knockout.type === 'DOUBLE_ELIM' && entrants === 2) {
+  if (type === 'DOUBLE_ELIM' && entrants === 2) {
     warnings.push('With 2 entrants, double elimination is just a single final.');
   }
 
@@ -110,7 +147,7 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
     errors.push('Group-standing seeding requires a group stage.');
   }
 
-  const bracketSize = entrants >= 2 ? nextPowerOfTwo(entrants) : 0;
+  const bracketSize = hasKnockout && entrants >= 2 ? nextPowerOfTwo(entrants) : 0;
   const byes = bracketSize > 0 ? bracketSize - entrants : 0;
 
   // Real matches that will be contested (byes and the optional reset excluded).
@@ -122,8 +159,12 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
     totalMatches +=
       larger * games(perGroup + 1) + (group.numGroups - larger) * games(perGroup);
   }
-  if (entrants >= 2) {
-    if (config.knockout.type === 'DOUBLE_ELIM') {
+  if (swiss && swiss.rounds >= 1 && playerCount >= 2) {
+    // Each round pairs the field; an odd player out gets a (uncounted) bye.
+    totalMatches += swiss.rounds * Math.floor(playerCount / 2);
+  }
+  if (hasKnockout && entrants >= 2) {
+    if (type === 'DOUBLE_ELIM') {
       totalMatches += 2 * entrants - 2;
     } else {
       const thirdPlaceReal =
@@ -145,10 +186,13 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
         ? Math.max(rrRounds(perGroup), rrRounds(perGroup + 1))
         : rrRounds(perGroup);
   }
-  if (entrants >= 2) {
+  if (swiss && swiss.rounds >= 1 && playerCount >= 2) {
+    sequentialSteps += swiss.rounds;
+  }
+  if (hasKnockout && entrants >= 2) {
     const rounds = Math.round(Math.log2(bracketSize));
     sequentialSteps +=
-      config.knockout.type === 'DOUBLE_ELIM'
+      type === 'DOUBLE_ELIM'
         ? 2 * rounds + (config.knockout.grandFinalReset ? 1 : 0)
         : rounds;
   }

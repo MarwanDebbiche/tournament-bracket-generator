@@ -30,8 +30,17 @@ export interface GroupStageConfig {
   tiebreakers: TiebreakerRule[];
 }
 
+export interface SwissConfig {
+  /** Number of Swiss rounds. */
+  rounds: number;
+  /** Top finishers that advance to the knockout (ignored when knockout is NONE). */
+  advance: number;
+  points: { win: number; draw: number; loss: number };
+}
+
 export interface KnockoutConfig {
-  type: 'SINGLE_ELIM' | 'DOUBLE_ELIM';
+  /** `NONE` = no knockout (the first stage decides the winner; Swiss only). */
+  type: 'NONE' | 'SINGLE_ELIM' | 'DOUBLE_ELIM';
   /** Single elimination: play a match between the two semi-final losers. */
   thirdPlaceMatch?: boolean;
   /** Double elimination: replay the grand final if the LB player wins it. */
@@ -42,14 +51,22 @@ export type SeedingMethod = 'RANDOM' | 'MANUAL' | 'GROUP_STANDING';
 export type ScoreMode = 'WIN_LOSS' | 'NUMERIC';
 
 export interface Config {
-  /** Optional first stage. `null` goes straight to the elimination stage. */
+  /** Optional first stage (round-robin groups). Mutually exclusive with `swiss`. */
   groupStage: GroupStageConfig | null;
+  /** Optional first stage (Swiss system). Mutually exclusive with `groupStage`. */
+  swiss: SwissConfig | null;
   knockout: KnockoutConfig;
   seeding: SeedingMethod;
   scoreMode: ScoreMode;
 }
 
-export type Phase = 'GROUP' | 'WINNERS' | 'LOSERS' | 'GRAND_FINAL' | 'THIRD_PLACE';
+export type Phase =
+  | 'GROUP'
+  | 'SWISS'
+  | 'WINNERS'
+  | 'LOSERS'
+  | 'GRAND_FINAL'
+  | 'THIRD_PLACE';
 
 export type Side = 'A' | 'B';
 

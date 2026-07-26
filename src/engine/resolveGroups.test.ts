@@ -32,6 +32,7 @@ function groupTournament(
         points: { win: 3, draw: 1, loss: 0 },
         tiebreakers: ['HEAD_TO_HEAD', 'GOAL_DIFFERENCE', 'GOALS_FOR', 'WINS', 'MANUAL'],
       },
+      swiss: null,
       knockout: { type: 'SINGLE_ELIM' },
       seeding: 'MANUAL',
       scoreMode: 'WIN_LOSS',

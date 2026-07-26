@@ -42,16 +42,20 @@ export default function ValidationPanel({
         </div>
       )}
 
-      {knockout.entrants >= 2 && (
+      {totalMatches > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
           <span>
-            {knockout.entrants} entrant{knockout.entrants === 1 ? '' : 's'} →{' '}
-            {knockout.bracketSize}-slot bracket
-            {knockout.byes > 0
-              ? ` · ${knockout.byes} bye${knockout.byes === 1 ? '' : 's'}`
-              : ''}
-            {' · '}
+            {knockout.entrants >= 2 && (
+              <>
+                {knockout.entrants} entrant{knockout.entrants === 1 ? '' : 's'} →{' '}
+                {knockout.bracketSize}-slot bracket
+                {knockout.byes > 0
+                  ? ` · ${knockout.byes} bye${knockout.byes === 1 ? '' : 's'}`
+                  : ''}
+                {' · '}
+              </>
+            )}
             {totalMatches} match{totalMatches === 1 ? '' : 'es'} to play
             {' · '}
             <span title="Rounds of matches that can be played in parallel — a rough sense of how long the tournament takes">

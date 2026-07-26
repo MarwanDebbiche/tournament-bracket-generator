@@ -10,6 +10,7 @@ import { BracketView } from '../components/bracket/BracketView';
 import { DoubleElimBracket } from '../components/bracket/DoubleElimBracket';
 import { ChampionBanner } from '../components/bracket/ChampionBanner';
 import { GroupStageView } from '../components/group/GroupStageView';
+import { SwissView } from '../components/swiss/SwissView';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { confirm } from '../components/ui/confirm';
 import ScoreEntryDialog from '../components/ScoreEntryDialog';
@@ -44,6 +45,7 @@ export default function TournamentPage() {
   }
 
   const hasGroupStage = tournament.groups.length > 0;
+  const hasSwiss = tournament.config.swiss !== null;
   const hasKnockout = tournament.matches.some((m) => m.phase === 'WINNERS');
   const isDoubleElim = tournament.matches.some((m) => m.phase === 'GRAND_FINAL');
   // Only real contests count toward progress — byes/walkovers aren't played.
@@ -106,9 +108,21 @@ export default function TournamentPage() {
         </section>
       )}
 
+      {hasSwiss && (
+        <section className="mt-8">
+          <h2 className={SECTION_HEADING}>Swiss stage</h2>
+          <SwissView
+            tournament={tournament}
+            derived={derived}
+            nameOf={nameOf}
+            onSelectMatch={setEditingMatchId}
+          />
+        </section>
+      )}
+
       {hasKnockout && (
         <section className="mt-8">
-          {hasGroupStage && <h2 className={SECTION_HEADING}>Knockout</h2>}
+          {(hasGroupStage || hasSwiss) && <h2 className={SECTION_HEADING}>Knockout</h2>}
           {isDoubleElim ? (
             <DoubleElimBracket
               derived={derived}
@@ -125,7 +139,7 @@ export default function TournamentPage() {
         </section>
       )}
 
-      {!hasGroupStage && !hasKnockout && (
+      {!hasGroupStage && !hasSwiss && !hasKnockout && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-6 dark:border-slate-700 dark:bg-slate-900/40">
           <ListTree className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" aria-hidden />
           <div className="text-sm text-slate-600 dark:text-slate-300">
@@ -143,7 +157,10 @@ export default function TournamentPage() {
           scoreMode={tournament.config.scoreMode}
           match={editingMatch}
           nameOf={nameOf}
-          allowDraw={editingMatch.match.phase === 'GROUP'}
+          allowDraw={
+            editingMatch.match.phase === 'GROUP' ||
+            editingMatch.match.phase === 'SWISS'
+          }
           onClose={() => setEditingMatchId(null)}
         />
       )}

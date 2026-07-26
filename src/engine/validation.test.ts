@@ -12,6 +12,7 @@ function players(count: number): Player[] {
 function config(overrides: Partial<Config> = {}): Config {
   return {
     groupStage: null,
+    swiss: null,
     knockout: { type: 'SINGLE_ELIM' },
     seeding: 'RANDOM',
     scoreMode: 'WIN_LOSS',
@@ -166,6 +167,7 @@ describe('validateSetup — total matches to play', () => {
         points: { win: 3, draw: 1, loss: 0 },
         tiebreakers: [],
       },
+      swiss: null,
       knockout: { type: 'SINGLE_ELIM' },
       seeding: 'RANDOM',
       scoreMode: 'WIN_LOSS',
@@ -186,6 +188,7 @@ describe('validateSetup — sequential steps (rounds)', () => {
         points: { win: 3, draw: 1, loss: 0 },
         tiebreakers: [],
       },
+      swiss: null,
       knockout: { type: 'SINGLE_ELIM' },
       seeding: 'RANDOM',
       scoreMode: 'WIN_LOSS',
@@ -214,5 +217,71 @@ describe('validateSetup — sequential steps (rounds)', () => {
     expect(groups(16, 4, 2)).toBe(6);
     // 2 groups of 3 (odd → 3 rounds) → 4 qualifiers → 2 knockout rounds → 5.
     expect(groups(6, 2, 2)).toBe(5);
+  });
+});
+
+describe('validateSetup — Swiss stage', () => {
+  const P = { win: 3, draw: 1, loss: 0 };
+  const swissOnly = (rounds: number) =>
+    config({ swiss: { rounds, advance: 0, points: P }, knockout: { type: 'NONE' } });
+  const swissKnockout = (rounds: number, advance: number) =>
+    config({ swiss: { rounds, advance, points: P }, knockout: { type: 'SINGLE_ELIM' } });
+
+  it('accepts a standalone Swiss system', () => {
+    expect(validateSetup(players(8), swissOnly(4)).ok).toBe(true);
+  });
+
+  it('accepts a Swiss stage feeding a knockout', () => {
+    expect(validateSetup(players(8), swissKnockout(3, 4)).ok).toBe(true);
+  });
+
+  it('rejects a knockout-free setup that has no Swiss stage', () => {
+    const result = validateSetup(players(8), config({ knockout: { type: 'NONE' } }));
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('knockout format'))).toBe(true);
+  });
+
+  it('rejects choosing both a group stage and a Swiss stage', () => {
+    const result = validateSetup(
+      players(8),
+      config({
+        groupStage: { numGroups: 2, advancePerGroup: 2, points: P, tiebreakers: [] },
+        swiss: { rounds: 3, advance: 4, points: P },
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('either a group stage or a Swiss'))).toBe(true);
+  });
+
+  it('caps the number of rounds at players − 1', () => {
+    const result = validateSetup(players(4), swissOnly(5));
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('at most 3 Swiss rounds'))).toBe(true);
+  });
+
+  it('requires at least one round', () => {
+    expect(validateSetup(players(4), swissOnly(0)).ok).toBe(false);
+  });
+
+  it('rejects advancing more players than exist', () => {
+    const result = validateSetup(players(6), swissKnockout(3, 8));
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("Can't advance 8"))).toBe(true);
+  });
+
+  it('rejects advancing fewer than two players', () => {
+    expect(validateSetup(players(6), swissKnockout(3, 1)).ok).toBe(false);
+  });
+
+  it('counts Swiss games (⌊n/2⌋ per round) plus any knockout games', () => {
+    expect(validateSetup(players(8), swissOnly(3)).totalMatches).toBe(12);
+    expect(validateSetup(players(8), swissKnockout(3, 4)).totalMatches).toBe(12 + 3);
+    // Odd field: 5 players → 2 games per round.
+    expect(validateSetup(players(5), swissOnly(4)).totalMatches).toBe(8);
+  });
+
+  it('counts one sequential step per Swiss round, plus knockout rounds', () => {
+    expect(validateSetup(players(8), swissOnly(3)).sequentialSteps).toBe(3);
+    expect(validateSetup(players(8), swissKnockout(3, 4)).sequentialSteps).toBe(3 + 2);
   });
 });

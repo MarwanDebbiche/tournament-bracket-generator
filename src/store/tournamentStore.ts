@@ -6,6 +6,7 @@ import type {
   MatchResult,
   Player,
   Slot,
+  SwissConfig,
   Tournament,
 } from '../engine/types';
 import { validateSetup } from '../engine/validation';
@@ -14,6 +15,7 @@ import { resolve } from '../engine/resolve';
 import { buildSingleEliminationFromEntrants } from '../engine/formats/singleElimination';
 import { buildDoubleEliminationFromEntrants } from '../engine/formats/doubleElimination';
 import { generateGroupStage, knockoutSeedSlots } from '../engine/formats/groupStage';
+import { swissSeedSlots } from '../engine/formats/swiss';
 import { createId } from '../lib/id';
 
 const STORAGE_KEY = 'tbg-storage';
@@ -23,6 +25,7 @@ const STORAGE_VERSION = 1;
 export function defaultConfig(): Config {
   return {
     groupStage: null,
+    swiss: null,
     knockout: { type: 'SINGLE_ELIM', thirdPlaceMatch: false, grandFinalReset: false },
     seeding: 'RANDOM',
     scoreMode: 'WIN_LOSS',
@@ -36,6 +39,15 @@ export function defaultGroupStage(): GroupStageConfig {
     advancePerGroup: 2,
     points: { win: 3, draw: 1, loss: 0 },
     tiebreakers: ['HEAD_TO_HEAD', 'GOAL_DIFFERENCE', 'GOALS_FOR', 'WINS', 'MANUAL'],
+  };
+}
+
+/** Defaults applied when the Swiss stage is switched on in the wizard. */
+export function defaultSwiss(): SwissConfig {
+  return {
+    rounds: 3,
+    advance: 4,
+    points: { win: 3, draw: 1, loss: 0 },
   };
 }
 
@@ -76,9 +88,11 @@ function pruneResults(tournament: Tournament): Record<string, MatchResult> {
 }
 
 /**
- * Generate the structure for a launched tournament: an optional group stage
- * feeding a single- or double-elimination knockout. Covers all four format
- * combinations.
+ * Generate the persisted structure for a launched tournament. The first stage is
+ * an optional group stage or Swiss stage; it may feed a single- or double-
+ * elimination knockout (or, for Swiss, stand alone). Group matches are built up
+ * front; Swiss rounds are derived live by `resolve()`, so only the seed order is
+ * persisted here (plus the knockout, whose entrants are filled in later).
  */
 function buildStructure(
   tournament: Tournament,
@@ -95,18 +109,24 @@ function buildStructure(
     groups = generated.groups;
     groupMatches = generated.matches;
     entrants = knockoutSeedSlots(groups, config.groupStage.advancePerGroup);
+  } else if (config.swiss) {
+    // Swiss rounds are generated on the fly from results by resolve(); the
+    // knockout (if any) is seeded from the final Swiss standings.
+    entrants = swissSeedSlots(config.swiss.advance);
   } else {
     entrants = seeded.map((p) => ({ kind: 'PLAYER', playerId: p.id }));
   }
 
-  const knockout =
-    config.knockout.type === 'SINGLE_ELIM'
-      ? buildSingleEliminationFromEntrants(entrants, {
-          thirdPlaceMatch: config.knockout.thirdPlaceMatch,
-        })
-      : buildDoubleEliminationFromEntrants(entrants, {
-          grandFinalReset: config.knockout.grandFinalReset,
-        });
+  let knockout: Tournament['matches'] = [];
+  if (config.knockout.type === 'SINGLE_ELIM') {
+    knockout = buildSingleEliminationFromEntrants(entrants, {
+      thirdPlaceMatch: config.knockout.thirdPlaceMatch,
+    });
+  } else if (config.knockout.type === 'DOUBLE_ELIM') {
+    knockout = buildDoubleEliminationFromEntrants(entrants, {
+      grandFinalReset: config.knockout.grandFinalReset,
+    });
+  }
 
   return { players: seeded, groups, matches: [...groupMatches, ...knockout] };
 }

@@ -3,10 +3,15 @@ import type {
   KnockoutConfig,
   ScoreMode,
   SeedingMethod,
+  SwissConfig,
 } from '../../engine/types';
 import type { SetupValidation } from '../../engine/validation';
 import type { Tournament } from '../../engine/types';
-import { defaultGroupStage, useTournamentStore } from '../../store/tournamentStore';
+import {
+  defaultGroupStage,
+  defaultSwiss,
+  useTournamentStore,
+} from '../../store/tournamentStore';
 import {
   Field,
   IntInput,
@@ -15,6 +20,36 @@ import {
   Toggle,
 } from './controls';
 import ValidationPanel from './ValidationPanel';
+
+type FirstStage = 'NONE' | 'GROUPS' | 'SWISS';
+
+function PointsFields({
+  points,
+  onChange,
+}: {
+  points: { win: number; draw: number; loss: number };
+  onChange: (points: { win: number; draw: number; loss: number }) => void;
+}) {
+  return (
+    <Field label="Points" hint="Awarded per match.">
+      <div className="grid grid-cols-3 gap-3">
+        {(['win', 'draw', 'loss'] as const).map((key) => (
+          <label key={key} className="block">
+            <span className="mb-1 block text-xs capitalize text-slate-500 dark:text-slate-400">
+              {key}
+            </span>
+            <IntInput
+              value={points[key]}
+              min={0}
+              ariaLabel={`Points for a ${key}`}
+              onChange={(v) => onChange({ ...points, [key]: v })}
+            />
+          </label>
+        ))}
+      </div>
+    </Field>
+  );
+}
 
 export default function OptionsStep({
   tournament,
@@ -25,35 +60,80 @@ export default function OptionsStep({
 }) {
   const updateConfig = useTournamentStore((s) => s.updateConfig);
   const { id, config } = tournament;
-  const { groupStage, knockout, seeding, scoreMode } = config;
+  const { groupStage, swiss, knockout, seeding, scoreMode } = config;
 
   const patch = (change: Partial<Config>) => updateConfig(id, change);
 
-  const toggleGroupStage = (on: boolean) => {
-    if (on) {
-      patch({ groupStage: defaultGroupStage() });
-    } else {
-      patch({
-        groupStage: null,
-        // Group-standing seeding is only valid with a group stage.
-        seeding: seeding === 'GROUP_STANDING' ? 'RANDOM' : seeding,
-      });
+  const firstStage: FirstStage = groupStage ? 'GROUPS' : swiss ? 'SWISS' : 'NONE';
+
+  const setFirstStage = (stage: FirstStage) => {
+    const change: Partial<Config> = {
+      groupStage: stage === 'GROUPS' ? (groupStage ?? defaultGroupStage()) : null,
+      swiss: stage === 'SWISS' ? (swiss ?? defaultSwiss()) : null,
+    };
+    // Group-standing seeding only makes sense with a group stage.
+    if (stage !== 'GROUPS' && seeding === 'GROUP_STANDING') change.seeding = 'RANDOM';
+    // "No knockout" is only valid when a Swiss stage decides the winner.
+    if (stage !== 'SWISS' && knockout.type === 'NONE') {
+      change.knockout = { ...knockout, type: 'SINGLE_ELIM' };
     }
+    patch(change);
   };
 
+  const setSwiss = (change: Partial<SwissConfig>) =>
+    swiss && patch({ swiss: { ...swiss, ...change } });
   const setKnockout = (change: Partial<KnockoutConfig>) =>
     patch({ knockout: { ...knockout, ...change } });
+
+  const knockoutOptions = [
+    ...(firstStage === 'SWISS'
+      ? [
+          {
+            value: 'NONE' as const,
+            label: 'None',
+            description: 'The Swiss standings decide the winner.',
+          },
+        ]
+      : []),
+    {
+      value: 'SINGLE_ELIM' as const,
+      label: 'Single elimination',
+      description: 'Lose once and you are out.',
+    },
+    {
+      value: 'DOUBLE_ELIM' as const,
+      label: 'Double elimination',
+      description: 'Winners + losers brackets; out after two losses.',
+    },
+  ];
 
   return (
     <div className="space-y-5">
       <SectionCard
-        title="Group stage"
-        description="Optional first stage. Players play round-robin within their group; the top finishers advance to the bracket."
+        title="Format"
+        description="Choose an optional first stage. Its results seed the elimination stage that follows."
       >
-        <Toggle
-          checked={groupStage !== null}
-          onChange={toggleGroupStage}
-          label="Include a group stage"
+        <OptionCards<FirstStage>
+          columns={3}
+          value={firstStage}
+          onChange={setFirstStage}
+          options={[
+            {
+              value: 'NONE',
+              label: 'Straight to bracket',
+              description: 'No first stage — go right to the knockout.',
+            },
+            {
+              value: 'GROUPS',
+              label: 'Group stage',
+              description: 'Round-robin groups; top finishers advance.',
+            },
+            {
+              value: 'SWISS',
+              label: 'Swiss system',
+              description: 'Fixed rounds pairing similar records.',
+            },
+          ]}
         />
 
         {groupStage && (
@@ -81,30 +161,10 @@ export default function OptionsStep({
               </Field>
             </div>
 
-            <Field label="Points" hint="Awarded per group match.">
-              <div className="grid grid-cols-3 gap-3">
-                {(['win', 'draw', 'loss'] as const).map((key) => (
-                  <label key={key} className="block">
-                    <span className="mb-1 block text-xs capitalize text-slate-500 dark:text-slate-400">
-                      {key}
-                    </span>
-                    <IntInput
-                      value={groupStage.points[key]}
-                      min={0}
-                      ariaLabel={`Points for a ${key}`}
-                      onChange={(v) =>
-                        patch({
-                          groupStage: {
-                            ...groupStage,
-                            points: { ...groupStage.points, [key]: v },
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-            </Field>
+            <PointsFields
+              points={groupStage.points}
+              onChange={(points) => patch({ groupStage: { ...groupStage, points } })}
+            />
 
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Ties are broken by head-to-head, then goal difference, goals for, and
@@ -112,34 +172,72 @@ export default function OptionsStep({
             </p>
           </div>
         )}
+
+        {swiss && (
+          <div className="space-y-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <Field
+              label="Rounds"
+              hint="Each round pairs players on similar scores; no one plays the same opponent twice."
+            >
+              <IntInput
+                value={swiss.rounds}
+                min={1}
+                ariaLabel="Number of Swiss rounds"
+                onChange={(rounds) => setSwiss({ rounds })}
+              />
+            </Field>
+
+            <PointsFields
+              points={swiss.points}
+              onChange={(points) => setSwiss({ points })}
+            />
+
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Ties are broken by Buchholz (the combined score of a player's
+              opponents). A bye counts as a win.
+            </p>
+          </div>
+        )}
       </SectionCard>
 
-      <SectionCard title="Elimination stage" description="Decides the winner.">
+      <SectionCard
+        title="Elimination stage"
+        description={
+          firstStage === 'SWISS'
+            ? 'Optionally send the top finishers into a knockout bracket.'
+            : 'Decides the winner.'
+        }
+      >
         <OptionCards<KnockoutConfig['type']>
+          columns={firstStage === 'SWISS' ? 3 : 2}
           value={knockout.type}
           onChange={(type) => setKnockout({ type })}
-          options={[
-            {
-              value: 'SINGLE_ELIM',
-              label: 'Single elimination',
-              description: 'Lose once and you are out.',
-            },
-            {
-              value: 'DOUBLE_ELIM',
-              label: 'Double elimination',
-              description: 'Winners + losers brackets; out after two losses.',
-            },
-          ]}
+          options={knockoutOptions}
         />
 
-        {knockout.type === 'SINGLE_ELIM' ? (
+        {swiss && knockout.type !== 'NONE' && (
+          <Field
+            label="Players advancing"
+            hint="How many of the Swiss standings enter the bracket."
+          >
+            <IntInput
+              value={swiss.advance}
+              min={2}
+              ariaLabel="Players advancing to the knockout"
+              onChange={(advance) => setSwiss({ advance })}
+            />
+          </Field>
+        )}
+
+        {knockout.type === 'SINGLE_ELIM' && (
           <Toggle
             checked={knockout.thirdPlaceMatch ?? false}
             onChange={(thirdPlaceMatch) => setKnockout({ thirdPlaceMatch })}
             label="Third-place match"
             description="The two semi-final losers play for third place."
           />
-        ) : (
+        )}
+        {knockout.type === 'DOUBLE_ELIM' && (
           <Toggle
             checked={knockout.grandFinalReset ?? false}
             onChange={(grandFinalReset) => setKnockout({ grandFinalReset })}

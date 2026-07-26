@@ -2,6 +2,12 @@ import type { Group, Match, MatchResult, Slot, Tournament } from './types';
 import { computeStandings } from './standings';
 import type { StandingRow, StandingsOptions } from './standings';
 import { nextPowerOfTwo } from './validation';
+import {
+  buildSwissMatches,
+  computeSwissStandings,
+  swissStageComplete,
+} from './formats/swiss';
+import type { SwissStandingRow } from './formats/swiss';
 
 /** A match slot resolved to a concrete occupant. */
 export type ResolvedSide =
@@ -33,7 +39,11 @@ export interface DerivedState {
   playableMatchIds: string[];
   standings: Record<string, StandingRow[]>;
   groupsComplete: Record<string, boolean>;
-  /** Knockout seeding of the qualifiers (best first) once all groups finish. */
+  /** Swiss standings (best first); empty unless the tournament has a Swiss stage. */
+  swissStandings: SwissStandingRow[];
+  /** True once every Swiss round has been played (the stage is decided). */
+  swissComplete: boolean;
+  /** Knockout seeding of the qualifiers (best first) once the first stage finishes. */
   qualifierSeeding?: string[];
   champion?: string;
   runnerUp?: string;
@@ -261,7 +271,14 @@ export function seedQualifiers(
  * results map. Pure: same inputs always produce the same output.
  */
 export function resolve(tournament: Tournament): DerivedState {
-  const { matches, results, groups, config } = tournament;
+  const { matches, results, groups, config, players } = tournament;
+
+  // A Swiss stage's rounds are derived live (they can't be pre-generated); the
+  // persisted `matches` holds only the optional knockout that follows it.
+  const swissMatches = config.swiss
+    ? buildSwissMatches(players, results, config.swiss)
+    : [];
+  const allMatches = swissMatches.length ? [...swissMatches, ...matches] : matches;
 
   const groupOptions: StandingsOptions = config.groupStage
     ? { points: config.groupStage.points, tiebreakers: config.groupStage.tiebreakers }
@@ -270,7 +287,7 @@ export function resolve(tournament: Tournament): DerivedState {
   const standings: Record<string, StandingRow[]> = {};
   const groupsComplete: Record<string, boolean> = {};
   for (const group of groups) {
-    const groupMatches = matches.filter(
+    const groupMatches = allMatches.filter(
       (m) => m.phase === 'GROUP' && m.groupId === group.id,
     );
     standings[group.id] = computeStandings(
@@ -283,17 +300,36 @@ export function resolve(tournament: Tournament): DerivedState {
       groupMatches.length > 0 && groupMatches.every((m) => Boolean(results[m.id]));
   }
 
-  // Cross-group merit seeding needs every group's final standings.
-  const allGroupsComplete =
-    groups.length > 0 && groups.every((g) => groupsComplete[g.id]);
-  const qualifierSeeding =
-    config.groupStage && allGroupsComplete
-      ? seedQualifiers(groups, standings, config.groupStage.advancePerGroup)
-      : undefined;
+  const swissStandings = config.swiss
+    ? computeSwissStandings(
+        players.map((p) => p.id),
+        swissMatches,
+        results,
+        config.swiss.points,
+      )
+    : [];
+  const swissComplete = config.swiss
+    ? swissStageComplete(swissMatches, results, config.swiss)
+    : false;
+
+  // Seeding into the knockout: from group standings, or from the Swiss final
+  // standings (top `advance`), once the first stage is fully decided.
+  let qualifierSeeding: string[] | undefined;
+  if (config.groupStage) {
+    const allGroupsComplete =
+      groups.length > 0 && groups.every((g) => groupsComplete[g.id]);
+    if (allGroupsComplete) {
+      qualifierSeeding = seedQualifiers(groups, standings, config.groupStage.advancePerGroup);
+    }
+  } else if (config.swiss && config.knockout.type !== 'NONE' && swissComplete) {
+    qualifierSeeding = swissStandings
+      .slice(0, config.swiss.advance)
+      .map((row) => row.playerId);
+  }
 
   const byId: Record<string, ResolvedMatch> = {};
   const ctx: SlotContext = { byId, standings, groupsComplete, qualifierSeeding };
-  for (const match of topologicalOrder(matches)) {
+  for (const match of topologicalOrder(allMatches)) {
     byId[match.id] = evaluate(
       match,
       resolveSlot(match.slotA, ctx),
@@ -307,10 +343,11 @@ export function resolve(tournament: Tournament): DerivedState {
   let thirdPlace: string | undefined;
   let fourthPlace: string | undefined;
 
-  const gf1 = matches.find((m) => m.phase === 'GRAND_FINAL' && m.round === 0);
+  const gf1 = allMatches.find((m) => m.phase === 'GRAND_FINAL' && m.round === 0);
+  const winners = allMatches.filter((m) => m.phase === 'WINNERS');
   if (gf1) {
     // Double elimination — the grand final (and optional reset) decides it.
-    const gf2 = matches.find((m) => m.phase === 'GRAND_FINAL' && m.round === 1);
+    const gf2 = allMatches.find((m) => m.phase === 'GRAND_FINAL' && m.round === 1);
     const r1 = byId[gf1.id];
     const wbPlayer = r1.sideA.kind === 'PLAYER' ? r1.sideA.playerId : undefined;
     if (r1.status === 'DONE' && r1.winnerId) {
@@ -327,28 +364,30 @@ export function resolve(tournament: Tournament): DerivedState {
         if (gf2) byId[gf2.id] = { ...byId[gf2.id], skipped: true };
       }
     }
-  } else {
-    // Single elimination (with or without groups) — the winners final decides it.
-    const winners = matches.filter((m) => m.phase === 'WINNERS');
-    const finalMatch =
-      winners.length > 0
-        ? winners.reduce((best, m) => (m.round > best.round ? m : best))
-        : undefined;
-    const finalResolved = finalMatch ? byId[finalMatch.id] : undefined;
+  } else if (winners.length > 0) {
+    // Single elimination (after nothing, groups, or Swiss) — the final decides it.
+    const finalMatch = winners.reduce((best, m) => (m.round > best.round ? m : best));
+    const finalResolved = byId[finalMatch.id];
     if (finalResolved?.status === 'DONE') {
       champion = finalResolved.winnerId;
       runnerUp = finalResolved.loserId;
     }
+  } else if (config.swiss && config.knockout.type === 'NONE' && swissComplete) {
+    // Swiss with no knockout — the final standings decide it outright.
+    champion = swissStandings[0]?.playerId;
+    runnerUp = swissStandings[1]?.playerId;
+    thirdPlace = swissStandings[2]?.playerId;
+    fourthPlace = swissStandings[3]?.playerId;
   }
 
-  const thirdPlaceMatch = matches.find((m) => m.phase === 'THIRD_PLACE');
+  const thirdPlaceMatch = allMatches.find((m) => m.phase === 'THIRD_PLACE');
   const thirdResolved = thirdPlaceMatch ? byId[thirdPlaceMatch.id] : undefined;
   if (thirdResolved?.status === 'DONE') {
     thirdPlace = thirdResolved.winnerId;
     fourthPlace = thirdResolved.loserId;
   }
 
-  const resolvedMatches = matches.map((m) => byId[m.id]);
+  const resolvedMatches = allMatches.map((m) => byId[m.id]);
   const isComplete =
     resolvedMatches.length > 0 &&
     resolvedMatches.every((m) => m.status === 'DONE' || m.skipped);
@@ -361,6 +400,8 @@ export function resolve(tournament: Tournament): DerivedState {
       .map((m) => m.id),
     standings,
     groupsComplete,
+    swissStandings,
+    swissComplete,
     qualifierSeeding,
     champion,
     runnerUp,
