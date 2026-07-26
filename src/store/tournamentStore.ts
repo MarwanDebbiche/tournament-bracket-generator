@@ -227,13 +227,14 @@ export const useTournamentStore = create<TournamentState>()(
 
         launchTournament: (id) => {
           const tournament = get().tournaments.find((t) => t.id === id);
-          const validation = tournament
+          const validation: SetupValidation = tournament
             ? validateSetup(tournament.players, tournament.config)
             : {
                 ok: false,
                 errors: ['Tournament not found.'],
                 warnings: [],
                 knockout: { entrants: 0, bracketSize: 0, byes: 0 },
+                totalMatches: 0,
               };
           if (tournament && tournament.status === 'DRAFT' && validation.ok) {
             update(id, (t) => ({

@@ -132,3 +132,44 @@ describe('validateSetup — seeding', () => {
     expect(result.errors.join(' ')).toMatch(/group-standing seeding/i);
   });
 });
+
+describe('validateSetup — total matches to play', () => {
+  const matches = (n: number, overrides: Partial<Config> = {}) =>
+    validateSetup(players(n), config(overrides)).totalMatches;
+
+  it('single elimination is entrants − 1, independent of byes', () => {
+    expect(matches(8)).toBe(7);
+    expect(matches(6)).toBe(5); // 8-slot bracket, 2 byes, but only 5 real games
+    expect(matches(2)).toBe(1);
+  });
+
+  it('counts a third-place match only when it is a real contest', () => {
+    const withThird: Partial<Config> = {
+      knockout: { type: 'SINGLE_ELIM', thirdPlaceMatch: true },
+    };
+    expect(matches(8, withThird)).toBe(8); // 7 + real third place
+    expect(matches(4, withThird)).toBe(4); // 3 + real third place
+    expect(matches(3, withThird)).toBe(2); // third place would be a walkover → not counted
+  });
+
+  it('double elimination is 2·entrants − 2 (reset excluded)', () => {
+    expect(matches(4, { knockout: { type: 'DOUBLE_ELIM' } })).toBe(6);
+    expect(matches(6, { knockout: { type: 'DOUBLE_ELIM' } })).toBe(10);
+  });
+
+  it('adds group round-robin games to the knockout games', () => {
+    // 2 groups of 3 → 2×3 = 6 group games; 2×2 = 4 qualifiers → 3 knockout games.
+    const result = validateSetup(players(6), {
+      groupStage: {
+        numGroups: 2,
+        advancePerGroup: 2,
+        points: { win: 3, draw: 1, loss: 0 },
+        tiebreakers: [],
+      },
+      knockout: { type: 'SINGLE_ELIM' },
+      seeding: 'RANDOM',
+      scoreMode: 'WIN_LOSS',
+    });
+    expect(result.totalMatches).toBe(9);
+  });
+});

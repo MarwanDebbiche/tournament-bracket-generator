@@ -6,7 +6,7 @@ export default function ValidationPanel({
 }: {
   validation: SetupValidation;
 }) {
-  const { errors, warnings, knockout } = validation;
+  const { errors, warnings, knockout, totalMatches } = validation;
 
   return (
     <div className="space-y-2">
@@ -49,9 +49,10 @@ export default function ValidationPanel({
             {knockout.entrants} entrant{knockout.entrants === 1 ? '' : 's'} →{' '}
             {knockout.bracketSize}-slot bracket
             {knockout.byes > 0
-              ? ` with ${knockout.byes} bye${knockout.byes === 1 ? '' : 's'}`
-              : ' (no byes needed)'}
-            .
+              ? ` · ${knockout.byes} bye${knockout.byes === 1 ? '' : 's'}`
+              : ''}
+            {' · '}
+            {totalMatches} match{totalMatches === 1 ? '' : 'es'} to play
           </span>
         </div>
       )}

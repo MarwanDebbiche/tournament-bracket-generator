@@ -45,7 +45,8 @@ export default function TournamentPage() {
   const hasGroupStage = tournament.groups.length > 0;
   const hasKnockout = tournament.matches.some((m) => m.phase === 'WINNERS');
   const isDoubleElim = tournament.matches.some((m) => m.phase === 'GRAND_FINAL');
-  const playedMatches = derived.matches.filter((m) => !m.skipped);
+  // Only real contests count toward progress — byes/walkovers aren't played.
+  const playedMatches = derived.matches.filter((m) => !m.skipped && !m.isWalkover);
   const doneCount = playedMatches.filter((m) => m.status === 'DONE').length;
   const editingMatch = editingMatchId ? derived.byId[editingMatchId] : null;
 

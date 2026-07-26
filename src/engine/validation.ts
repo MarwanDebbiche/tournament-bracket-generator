@@ -23,6 +23,12 @@ export interface SetupValidation {
   errors: string[];
   warnings: string[];
   knockout: KnockoutInfo;
+  /**
+   * Number of real matches that will actually be contested — group games plus
+   * knockout games, excluding byes/walkovers and the conditional grand-final
+   * reset (which may not be needed).
+   */
+  totalMatches: number;
 }
 
 /**
@@ -101,10 +107,31 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
   const bracketSize = entrants >= 2 ? nextPowerOfTwo(entrants) : 0;
   const byes = bracketSize > 0 ? bracketSize - entrants : 0;
 
+  // Real matches that will be contested (byes and the optional reset excluded).
+  let totalMatches = 0;
+  if (group && group.numGroups >= 1) {
+    const perGroup = Math.floor(playerCount / group.numGroups);
+    const larger = playerCount % group.numGroups;
+    const games = (n: number) => (n * (n - 1)) / 2;
+    totalMatches +=
+      larger * games(perGroup + 1) + (group.numGroups - larger) * games(perGroup);
+  }
+  if (entrants >= 2) {
+    if (config.knockout.type === 'DOUBLE_ELIM') {
+      totalMatches += 2 * entrants - 2;
+    } else {
+      const thirdPlaceReal =
+        !!config.knockout.thirdPlaceMatch &&
+        (bracketSize >= 8 || (bracketSize === 4 && entrants === 4));
+      totalMatches += entrants - 1 + (thirdPlaceReal ? 1 : 0);
+    }
+  }
+
   return {
     ok: errors.length === 0,
     errors,
     warnings,
     knockout: { entrants, bracketSize, byes },
+    totalMatches,
   };
 }
