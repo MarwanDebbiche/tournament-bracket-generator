@@ -6,7 +6,7 @@ export default function ValidationPanel({
 }: {
   validation: SetupValidation;
 }) {
-  const { errors, warnings, knockout, totalMatches } = validation;
+  const { errors, warnings, knockout, totalMatches, sequentialSteps } = validation;
 
   return (
     <div className="space-y-2">
@@ -53,6 +53,10 @@ export default function ValidationPanel({
               : ''}
             {' · '}
             {totalMatches} match{totalMatches === 1 ? '' : 'es'} to play
+            {' · '}
+            <span title="Rounds of matches that can be played in parallel — a rough sense of how long the tournament takes">
+              {sequentialSteps} round{sequentialSteps === 1 ? '' : 's'}
+            </span>
           </span>
         </div>
       )}

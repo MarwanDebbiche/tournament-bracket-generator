@@ -173,3 +173,46 @@ describe('validateSetup — total matches to play', () => {
     expect(result.totalMatches).toBe(9);
   });
 });
+
+describe('validateSetup — sequential steps (rounds)', () => {
+  const steps = (n: number, overrides: Partial<Config> = {}) =>
+    validateSetup(players(n), config(overrides)).sequentialSteps;
+
+  const groups = (n: number, numGroups: number, advancePerGroup: number, extra: Partial<Config> = {}) =>
+    validateSetup(players(n), {
+      groupStage: {
+        numGroups,
+        advancePerGroup,
+        points: { win: 3, draw: 1, loss: 0 },
+        tiebreakers: [],
+      },
+      knockout: { type: 'SINGLE_ELIM' },
+      seeding: 'RANDOM',
+      scoreMode: 'WIN_LOSS',
+      ...extra,
+    }).sequentialSteps;
+
+  it('single elimination is log2(bracket size)', () => {
+    expect(steps(16)).toBe(4); // 15 matches, but 4 rounds
+    expect(steps(8)).toBe(3);
+    expect(steps(6)).toBe(3); // 8-slot bracket
+    expect(steps(2)).toBe(1);
+  });
+
+  it('a third-place match does not add a round (plays alongside the final)', () => {
+    expect(steps(8, { knockout: { type: 'SINGLE_ELIM', thirdPlaceMatch: true } })).toBe(3);
+  });
+
+  it('double elimination is 2·log2(bracket size), +1 with a reset', () => {
+    expect(steps(4, { knockout: { type: 'DOUBLE_ELIM' } })).toBe(4);
+    expect(steps(8, { knockout: { type: 'DOUBLE_ELIM' } })).toBe(6);
+    expect(steps(8, { knockout: { type: 'DOUBLE_ELIM', grandFinalReset: true } })).toBe(7);
+  });
+
+  it('a group round-robin needs size−1 rounds (even) and runs in parallel across groups', () => {
+    // 4 groups of 4 → 3 group rounds; 4×2 = 8 qualifiers → 3 knockout rounds → 6.
+    expect(groups(16, 4, 2)).toBe(6);
+    // 2 groups of 3 (odd → 3 rounds) → 4 qualifiers → 2 knockout rounds → 5.
+    expect(groups(6, 2, 2)).toBe(5);
+  });
+});

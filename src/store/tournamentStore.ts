@@ -235,6 +235,7 @@ export const useTournamentStore = create<TournamentState>()(
                 warnings: [],
                 knockout: { entrants: 0, bracketSize: 0, byes: 0 },
                 totalMatches: 0,
+                sequentialSteps: 0,
               };
           if (tournament && tournament.status === 'DRAFT' && validation.ok) {
             update(id, (t) => ({

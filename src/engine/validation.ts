@@ -29,6 +29,12 @@ export interface SetupValidation {
    * reset (which may not be needed).
    */
   totalMatches: number;
+  /**
+   * Minimum number of sequential rounds ("steps") to complete the tournament if
+   * every match that can be played in parallel is — bounded by each player only
+   * playing one match at a time. A rough sense of how long the event runs.
+   */
+  sequentialSteps: number;
 }
 
 /**
@@ -127,11 +133,32 @@ export function validateSetup(players: Player[], config: Config): SetupValidatio
     }
   }
 
+  // Sequential rounds ("steps"): matches that can run in parallel count as one.
+  let sequentialSteps = 0;
+  if (group && group.numGroups >= 1) {
+    const perGroup = Math.floor(playerCount / group.numGroups);
+    const remainder = playerCount % group.numGroups;
+    // Round-robin of n players needs n-1 rounds (even) or n rounds (odd).
+    const rrRounds = (n: number) => (n < 2 ? 0 : n % 2 === 0 ? n - 1 : n);
+    sequentialSteps +=
+      remainder > 0
+        ? Math.max(rrRounds(perGroup), rrRounds(perGroup + 1))
+        : rrRounds(perGroup);
+  }
+  if (entrants >= 2) {
+    const rounds = Math.round(Math.log2(bracketSize));
+    sequentialSteps +=
+      config.knockout.type === 'DOUBLE_ELIM'
+        ? 2 * rounds + (config.knockout.grandFinalReset ? 1 : 0)
+        : rounds;
+  }
+
   return {
     ok: errors.length === 0,
     errors,
     warnings,
     knockout: { entrants, bracketSize, byes },
     totalMatches,
+    sequentialSteps,
   };
 }
