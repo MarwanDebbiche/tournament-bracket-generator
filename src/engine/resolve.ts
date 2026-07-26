@@ -1,4 +1,4 @@
-import type { Match, MatchResult, Slot, Tournament } from './types';
+import type { Group, Match, MatchResult, Slot, Tournament } from './types';
 import { computeStandings } from './standings';
 import type { StandingRow, StandingsOptions } from './standings';
 
@@ -32,6 +32,8 @@ export interface DerivedState {
   playableMatchIds: string[];
   standings: Record<string, StandingRow[]>;
   groupsComplete: Record<string, boolean>;
+  /** Knockout seeding of the qualifiers (best first) once all groups finish. */
+  qualifierSeeding?: string[];
   champion?: string;
   runnerUp?: string;
   thirdPlace?: string;
@@ -43,6 +45,7 @@ interface SlotContext {
   byId: Record<string, ResolvedMatch>;
   standings: Record<string, StandingRow[]>;
   groupsComplete: Record<string, boolean>;
+  qualifierSeeding?: string[];
 }
 
 function resolveSlot(slot: Slot, ctx: SlotContext): ResolvedSide {
@@ -71,9 +74,15 @@ function resolveSlot(slot: Slot, ctx: SlotContext): ResolvedSide {
       return { kind: 'TBD' };
     }
     case 'GROUP_RANK': {
+      // Legacy positional seeding (kept for tournaments launched before merit
+      // seeding). New tournaments use SEED slots.
       if (!ctx.groupsComplete[slot.groupId]) return { kind: 'TBD' };
       const row = ctx.standings[slot.groupId]?.[slot.rank - 1];
       return row ? { kind: 'PLAYER', playerId: row.playerId } : { kind: 'TBD' };
+    }
+    case 'SEED': {
+      const playerId = ctx.qualifierSeeding?.[slot.seed - 1];
+      return playerId ? { kind: 'PLAYER', playerId } : { kind: 'TBD' };
     }
   }
 }
@@ -141,6 +150,42 @@ function topologicalOrder(matches: Match[]): Match[] {
   return ordered;
 }
 
+function pointsPerGame(row: StandingRow): number {
+  return row.played > 0 ? row.points / row.played : 0;
+}
+
+/**
+ * Overall knockout seeding of the group qualifiers, best first. Group winners
+ * are seeded above runners-up (and so on); within each rank band, qualifiers
+ * are ordered by their group-stage record — points per game (fair across
+ * uneven groups), then goal difference, goals for, and wins — so byes and
+ * favorable slots go to the best performers. Ties fall back to group order.
+ */
+export function seedQualifiers(
+  groups: Group[],
+  standings: Record<string, StandingRow[]>,
+  advancePerGroup: number,
+): string[] {
+  const seeding: string[] = [];
+  for (let rank = 0; rank < advancePerGroup; rank++) {
+    const band = groups
+      .map((group, index) => ({ index, row: standings[group.id]?.[rank] }))
+      .filter((entry): entry is { index: number; row: StandingRow } =>
+        Boolean(entry.row),
+      )
+      .sort(
+        (a, b) =>
+          pointsPerGame(b.row) - pointsPerGame(a.row) ||
+          b.row.goalDifference - a.row.goalDifference ||
+          b.row.goalsFor - a.row.goalsFor ||
+          b.row.won - a.row.won ||
+          a.index - b.index,
+      );
+    for (const entry of band) seeding.push(entry.row.playerId);
+  }
+  return seeding;
+}
+
 /**
  * Derive the full live state of a tournament from its (frozen) structure and its
  * results map. Pure: same inputs always produce the same output.
@@ -168,8 +213,16 @@ export function resolve(tournament: Tournament): DerivedState {
       groupMatches.length > 0 && groupMatches.every((m) => Boolean(results[m.id]));
   }
 
+  // Cross-group merit seeding needs every group's final standings.
+  const allGroupsComplete =
+    groups.length > 0 && groups.every((g) => groupsComplete[g.id]);
+  const qualifierSeeding =
+    config.groupStage && allGroupsComplete
+      ? seedQualifiers(groups, standings, config.groupStage.advancePerGroup)
+      : undefined;
+
   const byId: Record<string, ResolvedMatch> = {};
-  const ctx: SlotContext = { byId, standings, groupsComplete };
+  const ctx: SlotContext = { byId, standings, groupsComplete, qualifierSeeding };
   for (const match of topologicalOrder(matches)) {
     byId[match.id] = evaluate(
       match,
@@ -238,6 +291,7 @@ export function resolve(tournament: Tournament): DerivedState {
       .map((m) => m.id),
     standings,
     groupsComplete,
+    qualifierSeeding,
     champion,
     runnerUp,
     thirdPlace,

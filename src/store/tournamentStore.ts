@@ -13,7 +13,7 @@ import type { SetupValidation } from '../engine/validation';
 import { resolve } from '../engine/resolve';
 import { buildSingleEliminationFromEntrants } from '../engine/formats/singleElimination';
 import { buildDoubleEliminationFromEntrants } from '../engine/formats/doubleElimination';
-import { generateGroupStage, groupRankEntrants } from '../engine/formats/groupStage';
+import { generateGroupStage, knockoutSeedSlots } from '../engine/formats/groupStage';
 import { createId } from '../lib/id';
 
 const STORAGE_KEY = 'tbg-storage';
@@ -94,7 +94,7 @@ function buildStructure(
     const generated = generateGroupStage(seeded, config.groupStage.numGroups);
     groups = generated.groups;
     groupMatches = generated.matches;
-    entrants = groupRankEntrants(groups, config.groupStage.advancePerGroup);
+    entrants = knockoutSeedSlots(groups, config.groupStage.advancePerGroup);
   } else {
     entrants = seeded.map((p) => ({ kind: 'PLAYER', playerId: p.id }));
   }

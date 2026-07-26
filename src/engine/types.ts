@@ -59,7 +59,10 @@ export type Slot =
   | { kind: 'BYE' }
   | { kind: 'WINNER_OF'; matchId: string }
   | { kind: 'LOSER_OF'; matchId: string }
-  | { kind: 'GROUP_RANK'; groupId: string; rank: number };
+  /** Legacy positional group placement (older group→knockout tournaments). */
+  | { kind: 'GROUP_RANK'; groupId: string; rank: number }
+  /** The `seed`-th qualifier in the knockout's merit-based seeding (1-based). */
+  | { kind: 'SEED'; seed: number };
 
 export interface Match {
   id: string;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { resolve } from './resolve';
+import { resolve, seedQualifiers } from './resolve';
 import type { ResolvedSide } from './resolve';
-import { generateGroupStage, groupRankEntrants } from './formats/groupStage';
+import { generateGroupStage, knockoutSeedSlots } from './formats/groupStage';
 import { buildSingleEliminationFromEntrants } from './formats/singleElimination';
-import type { Player, Tournament } from './types';
+import type { StandingRow } from './standings';
+import type { Group, Player, Tournament } from './types';
 
 function players(count: number): Player[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -18,7 +19,7 @@ function groupTournament(
   advance: number,
 ): Tournament {
   const { groups, matches: groupMatches } = generateGroupStage(roster, numGroups);
-  const entrants = groupRankEntrants(groups, advance);
+  const entrants = knockoutSeedSlots(groups, advance);
   const knockout = buildSingleEliminationFromEntrants(entrants, {});
   return {
     id: 't',
@@ -96,5 +97,53 @@ describe('resolve — group stage → knockout', () => {
     expect(final.status).toBe('READY');
     expect(playerId(final.sideA)).toBe('p1');
     expect(playerId(final.sideB)).toBe('p2');
+  });
+});
+
+function standingRow(playerId: string, points: number, played = 3): StandingRow {
+  return {
+    playerId,
+    played,
+    won: 0,
+    drawn: 0,
+    lost: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    goalDifference: 0,
+    points,
+  };
+}
+
+describe('seedQualifiers — merit seeding', () => {
+  const groups: Group[] = [
+    { id: 'G0', name: 'Group A', playerIds: ['a1', 'a2'] },
+    { id: 'G1', name: 'Group B', playerIds: ['b1', 'b2'] },
+    { id: 'G2', name: 'Group C', playerIds: ['c1', 'c2'] },
+  ];
+
+  it('seeds winners above runners-up, each band ordered by points', () => {
+    const standings = {
+      G0: [standingRow('a1', 9), standingRow('a2', 4)],
+      G1: [standingRow('b1', 6), standingRow('b2', 5)],
+      G2: [standingRow('c1', 7), standingRow('c2', 3)],
+    };
+    // Winners by points: a1(9), c1(7), b1(6); then runners-up: b2(5), a2(4), c2(3).
+    // Note b2 (Group B runner-up, 5 pts) outranks a2 (Group A runner-up, 4 pts),
+    // even though Group A comes first — the old group-order seeding ranked a2 higher.
+    expect(seedQualifiers(groups, standings, 2)).toEqual([
+      'a1', 'c1', 'b1', 'b2', 'a2', 'c2',
+    ]);
+  });
+
+  it('normalizes by games played across uneven groups', () => {
+    const uneven: Group[] = [
+      { id: 'G0', name: 'A', playerIds: ['a'] },
+      { id: 'G1', name: 'B', playerIds: ['b'] },
+    ];
+    const standings = {
+      G0: [standingRow('a', 4, 2)], // 2.0 pts/game
+      G1: [standingRow('b', 5, 3)], // 1.67 pts/game
+    };
+    expect(seedQualifiers(uneven, standings, 1)).toEqual(['a', 'b']);
   });
 });

@@ -69,17 +69,12 @@ export function generateGroupStage(
 }
 
 /**
- * Seed-ordered entrant slots for the knockout stage: group winners first (in
- * group order), then all runners-up, and so on. Combined with the standard
- * bracket seeding this pairs each group winner against a different group's
- * runner-up in the first round.
+ * Entrant slots for the knockout stage, one per qualifier, in seed order
+ * (SEED 1 = the top overall seed). The actual player behind each seed is
+ * resolved from group standings once the group stage finishes (best group
+ * winner is seed 1, and so on) — see `seedQualifiers` in resolve.
  */
-export function groupRankEntrants(groups: Group[], advancePerGroup: number): Slot[] {
-  const entrants: Slot[] = [];
-  for (let rank = 1; rank <= advancePerGroup; rank++) {
-    for (const group of groups) {
-      entrants.push({ kind: 'GROUP_RANK', groupId: group.id, rank });
-    }
-  }
-  return entrants;
+export function knockoutSeedSlots(groups: Group[], advancePerGroup: number): Slot[] {
+  const count = groups.length * advancePerGroup;
+  return Array.from({ length: count }, (_, i) => ({ kind: 'SEED', seed: i + 1 }));
 }

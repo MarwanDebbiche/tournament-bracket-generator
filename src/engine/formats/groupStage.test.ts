@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   distributeIntoGroups,
   generateGroupStage,
-  groupRankEntrants,
+  knockoutSeedSlots,
 } from './groupStage';
 import { buildSingleEliminationFromEntrants } from './singleElimination';
 import type { Player, Slot } from '../types';
@@ -38,31 +38,27 @@ describe('generateGroupStage', () => {
   });
 });
 
-describe('groupRankEntrants + cross seeding', () => {
-  it('orders entrants rank-major (all winners, then all runners-up)', () => {
-    const { groups } = generateGroupStage(players(8), 2);
-    const entrants = groupRankEntrants(groups, 2) as Array<
-      Extract<Slot, { kind: 'GROUP_RANK' }>
+describe('knockoutSeedSlots', () => {
+  it('produces one SEED slot per qualifier, in seed order', () => {
+    const { groups } = generateGroupStage(players(8), 2); // 2 groups × 2 = 4
+    const entrants = knockoutSeedSlots(groups, 2) as Array<
+      Extract<Slot, { kind: 'SEED' }>
     >;
-    expect(entrants.map((e) => e.rank)).toEqual([1, 1, 2, 2]);
+    expect(entrants.every((e) => e.kind === 'SEED')).toBe(true);
+    expect(entrants.map((e) => e.seed)).toEqual([1, 2, 3, 4]);
   });
 
-  it('pairs each group winner against a different group in round one', () => {
-    const { groups } = generateGroupStage(players(8), 2);
-    const entrants = groupRankEntrants(groups, 2);
-    const bracket = buildSingleEliminationFromEntrants(entrants);
-    const firstRound = bracket.filter((m) => m.round === 0);
-
-    for (const match of firstRound) {
-      const a = match.slotA;
-      const b = match.slotB;
-      expect(a.kind).toBe('GROUP_RANK');
-      expect(b.kind).toBe('GROUP_RANK');
-      if (a.kind === 'GROUP_RANK' && b.kind === 'GROUP_RANK') {
-        // Different groups, and a winner (rank 1) faces a runner-up (rank 2).
-        expect(a.groupId).not.toBe(b.groupId);
-        expect([a.rank, b.rank].sort()).toEqual([1, 2]);
-      }
-    }
+  it('assigns byes to the top seeds when the field is not a power of two', () => {
+    // 3 groups × 2 = 6 qualifiers → 8-slot bracket → byes on seeds 1 and 2.
+    const { groups } = generateGroupStage(players(12), 3);
+    const bracket = buildSingleEliminationFromEntrants(knockoutSeedSlots(groups, 2));
+    const byeSeeds = bracket
+      .filter((m) => m.round === 0)
+      .filter((m) => m.slotA.kind === 'BYE' || m.slotB.kind === 'BYE')
+      .flatMap((m) => [m.slotA, m.slotB])
+      .filter((s): s is Extract<Slot, { kind: 'SEED' }> => s.kind === 'SEED')
+      .map((s) => s.seed)
+      .sort((a, b) => a - b);
+    expect(byeSeeds).toEqual([1, 2]);
   });
 });
